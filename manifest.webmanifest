@@ -1,0 +1,121 @@
+{
+  "id": "/",
+  "name": "MTECH Retail POS",
+  "short_name": "MTECH POS",
+  "description": "Offline-first retail POS with barcode scanning, branded receipts, controlled refunds, operational alerts, expense management, purchasing and reporting.",
+  "start_url": "/?source=pwa#/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f4f7f6",
+  "theme_color": "#0f766e",
+  "categories": ["business", "finance", "productivity"],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New sale",
+      "short_name": "Sell",
+      "description": "Open the point-of-sale terminal",
+      "url": "/#/pos",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "short_name": "Products",
+      "description": "Manage the product catalogue",
+      "url": "/#/products",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Alerts centre",
+      "short_name": "Alerts",
+      "description": "Review operational risks and pending actions",
+      "url": "/#/alerts",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "short_name": "Expenses",
+      "description": "Record and control operating expenses",
+      "url": "/#/expenses",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "short_name": "Reports",
+      "description": "Open business performance reports",
+      "url": "/#/reports",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop-dashboard-v3.jpg",
+      "sizes": "1348x926",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "Retail dashboard overview"
+    },
+    {
+      "src": "/screenshots/mobile-pos.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile point-of-sale checkout"
+    }
+  ]
+}

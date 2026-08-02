@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="color-scheme" content="light" />
+    <meta
+      name="description"
+      content="MTECH Retail POS is an offline-first, installable retail system with barcode sales, inventory, operational alerts, expense controls, purchasing and reporting."
+    />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MTECH POS" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="stylesheet" href="/assets/css/app.css?v=4.1.0-r3" />
+    <title>MTECH Retail POS</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+        <div class="brand-block">
+          <div class="brand-logo" id="brandLogo" aria-hidden="true"></div>
+          <div class="brand-copy">
+            <strong id="sidebarBusinessName">MTECH Retail POS</strong>
+            <span>Retail operations</span>
+          </div>
+          <button
+            class="icon-button sidebar-close mobile-only"
+            data-action="close-sidebar"
+            aria-label="Close navigation"
+            id="sidebarClose"
+          ></button>
+        </div>
+
+        <nav class="side-nav" id="sideNav">
+          <div class="nav-group-label">Workspace</div>
+          <button
+            class="nav-item active"
+            data-view="dashboard"
+            id="nav-dashboard"
+          ></button>
+          <button class="nav-item" data-view="pos" id="nav-pos"></button>
+          <button class="nav-item" data-view="sales" id="nav-sales"></button>
+          <button
+            class="nav-item"
+            data-view="register"
+            id="nav-register"
+          ></button>
+
+          <div class="nav-group-label">Catalogue & stock</div>
+          <button
+            class="nav-item"
+            data-view="products"
+            id="nav-products"
+          ></button>
+          <button
+            class="nav-item"
+            data-view="inventory"
+            id="nav-inventory"
+          ></button>
+          <button
+            class="nav-item"
+            data-view="stock-count"
+            id="nav-stock-count"
+          ></button>
+          <button
+            class="nav-item"
+            data-view="purchases"
+            id="nav-purchases"
+          ></button>
+
+          <div class="nav-group-label">Relationships</div>
+          <button
+            class="nav-item"
+            data-view="customers"
+            id="nav-customers"
+          ></button>
+          <button
+            class="nav-item"
+            data-view="suppliers"
+            id="nav-suppliers"
+          ></button>
+
+          <div class="nav-group-label">Finance & control</div>
+          <button
+            class="nav-item"
+            data-view="expenses"
+            id="nav-expenses"
+          ></button>
+          <button
+            class="nav-item"
+            data-view="alerts"
+            id="nav-alerts"
+          ></button>
+          <button
+            class="nav-item"
+            data-view="reports"
+            id="nav-reports"
+          ></button>
+          <button
+            class="nav-item"
+            data-view="settings"
+            id="nav-settings"
+          ></button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="connection-status">
+            <span class="status-dot"></span
+            ><span id="connectionText">Offline ready</span>
+          </div>
+          <small id="databaseStatus">Local database active</small>
+        </div>
+      </aside>
+
+      <main class="main-column">
+        <header class="topbar">
+          <div class="topbar-main">
+            <button
+              class="icon-button mobile-only"
+              data-action="open-sidebar"
+              id="menuButton"
+              aria-label="Open navigation"
+            ></button>
+            <div class="page-heading">
+              <h1 id="pageTitle">Dashboard</h1>
+              <p id="pageSubtitle">Overview of your retail business</p>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <div class="day-chip" id="dayChip" aria-label="Current date"></div>
+            <div class="register-chip" id="registerChip"></div>
+            <button
+              class="topbar-alert-button"
+              data-view="alerts"
+              id="alertsButton"
+              aria-label="Open alerts centre"
+            >
+              <span id="alertsButtonIcon" aria-hidden="true"></span>
+              <strong id="alertCount" hidden>0</strong>
+            </button>
+            <button
+              class="button button-outline install-trigger"
+              data-action="install-app"
+              id="installButton"
+            ></button>
+            <button
+              class="button button-primary compact-action"
+              data-view="pos"
+              id="newSaleButton"
+            ></button>
+          </div>
+        </header>
+
+        <section
+          class="view-container"
+          id="appView"
+          aria-live="polite"
+        ></section>
+      </main>
+    </div>
+
+    <nav class="mobile-nav" id="mobileNav" aria-label="Mobile navigation">
+      <button
+        class="active"
+        data-view="dashboard"
+        id="mobile-dashboard"
+      ></button>
+      <button data-view="pos" id="mobile-pos"></button>
+      <button data-view="products" id="mobile-products"></button>
+      <button data-view="sales" id="mobile-sales"></button>
+      <button data-action="open-sidebar" id="mobile-more"></button>
+    </nav>
+
+    <div
+      class="drawer-overlay"
+      id="drawerOverlay"
+      data-action="close-sidebar"
+      hidden
+    ></div>
+
+    <div class="modal-layer" id="modalLayer" hidden>
+      <div
+        class="modal-card"
+        id="modalCard"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modalTitle"
+      >
+        <header class="modal-header">
+          <div>
+            <h2 id="modalTitle">Dialog</h2>
+            <p id="modalSubtitle"></p>
+          </div>
+          <button
+            class="icon-button"
+            data-action="close-modal"
+            id="modalClose"
+            aria-label="Close dialog"
+          ></button>
+        </header>
+        <div class="modal-body" id="modalBody"></div>
+      </div>
+    </div>
+
+    <div class="scanner-layer" id="scannerLayer" hidden>
+      <div class="scanner-card">
+        <header class="scanner-header">
+          <div>
+            <strong>Scan product barcode</strong
+            ><span>Point the rear camera at the barcode</span>
+          </div>
+          <button
+            class="icon-button scanner-close"
+            data-action="close-scanner"
+            id="scannerClose"
+            aria-label="Close scanner"
+          ></button>
+        </header>
+        <div class="scanner-stage">
+          <video id="scannerVideo" playsinline muted></video>
+          <div class="scanner-frame"><span></span></div>
+          <div class="scanner-status" id="scannerStatus">Starting camera…</div>
+        </div>
+        <div class="scanner-controls">
+          <button
+            class="button button-outline"
+            data-action="toggle-torch"
+            id="torchButton"
+            hidden
+          ></button>
+          <label
+            class="button button-outline file-scan-button"
+            id="scanImageLabel"
+          >
+            <span id="scanImageText">Scan saved image</span>
+            <input
+              type="file"
+              id="barcodeImageInput"
+              accept="image/*"
+              hidden
+            />
+          </label>
+          <button
+            class="button button-secondary"
+            data-action="manual-barcode"
+            id="manualBarcodeButton"
+          ></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
+    <div id="printArea" class="print-area"></div>
+
+    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.1.0-r3"></script>
+    <script src="/assets/js/icons.js?v=4.1.0-r3"></script>
+    <script src="/assets/js/db.js?v=4.1.0-r3"></script>
+    <script src="/assets/js/app.js?v=4.1.0-r3"></script>
+  </body>
+</html>
