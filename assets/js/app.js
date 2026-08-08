@@ -28,7 +28,7 @@
       .slice(0, 10);
   const MAX_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
   const TARGET_PRODUCT_IMAGE_BYTES = 520 * 1024;
-  const APP_VERSION = "4.3.0";
+  const APP_VERSION = "4.4.0";
   const DEFAULT_PRODUCT_IMAGES = {
     "prod-001": "/assets/images/products/sugar-1kg.webp",
     "prod-003": "/assets/images/products/mineral-water-500ml.webp",
@@ -1318,6 +1318,22 @@
   function operationMetric(label, value, detail, iconName, tone = "") {
     return `<article class="operation-metric ${tone}"><div class="operation-metric-icon">${I(iconName)}</div><div><span>${esc(label)}</span><strong>${value}</strong><small>${esc(detail)}</small></div></article>`;
   }
+  function workspaceHero({
+    eyebrow,
+    title,
+    description,
+    actions = "",
+    spotlightLabel,
+    spotlightValue,
+    spotlightDetail,
+    iconName = "activity",
+    tone = "",
+  }) {
+    return `<section class="operations-subhero workspace-operations-hero ${tone}">
+      <div class="workspace-hero-copy"><span class="eyebrow">${esc(eyebrow)}</span><h2>${esc(title)}</h2><p>${esc(description)}</p>${actions ? `<div class="operations-hero-actions">${actions}</div>` : ""}</div>
+      <aside class="workspace-spotlight"><span class="workspace-spotlight-icon">${I(iconName)}</span><div><span>${esc(spotlightLabel)}</span><strong>${spotlightValue}</strong><small>${esc(spotlightDetail)}</small></div></aside>
+    </section>`;
+  }
   function transactionCard(sale, compact = false) {
     const itemCount = (sale.items || []).reduce(
       (sum, item) => sum + num(item.quantity),
@@ -1856,17 +1872,30 @@
       (sum, product) => sum + num(product.stock) * num(product.sellingPrice),
       0,
     );
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="catalogue-overview">
-        <div><span>${I("package")} Products</span><strong>${state.products.length}</strong><small>${state.categories.length} categories</small></div>
-        <div class="${lowStock ? "attention" : ""}"><span>${I("warning")} Low stock</span><strong>${lowStock}</strong><small>${outOfStock} out of stock</small></div>
-        <div><span>${I("image")} With images</span><strong>${imageCount}</strong><small>${state.products.length ? Math.round((imageCount / state.products.length) * 100) : 0}% catalogue coverage</small></div>
-        <div><span>${I("chart")} Retail value</span><strong>${formatMoney(retailValue)}</strong><small>Current stock at selling price</small></div>
+    $("#appView").innerHTML = `<div class="page-stack phase-page products-phase-page">
+      ${workspaceHero({
+        eyebrow: "Catalogue control",
+        title: "Keep every product ready to sell.",
+        description:
+          "Manage product identity, images, barcodes, pricing and stock visibility from one focused catalogue.",
+        actions: `<button class="button button-primary" data-action="new-product">${I("plus")}Add product</button><button class="button button-outline" data-action="manage-categories">${I("tag")}Manage categories</button>`,
+        spotlightLabel: "Current retail value",
+        spotlightValue: formatMoney(retailValue),
+        spotlightDetail: `${state.products.length} products across ${state.categories.length} categories`,
+        iconName: "package",
+        tone: lowStock ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Products", state.products.length, `${state.categories.length} active catalogue categories`, "package", "info")}
+        ${operationMetric("Low stock", lowStock, `${outOfStock} product${outOfStock === 1 ? "" : "s"} currently out of stock`, "warning", lowStock ? "warning" : "success")}
+        ${operationMetric("Product images", imageCount, `${state.products.length ? Math.round((imageCount / state.products.length) * 100) : 0}% catalogue image coverage`, "image", "success")}
+        ${operationMetric("Shown now", products.length, "Products matching the active filters", "list", "info")}
       </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Product catalogue</h2><p>Manage product information, images, pricing and stock visibility</p></div><div class="toolbar-actions"><div class="view-switch" aria-label="Catalogue layout"><button class="${state.productView === "table" ? "active" : ""}" data-action="product-view" data-mode="table" title="Table view">${I("list")}</button><button class="${state.productView === "grid" ? "active" : ""}" data-action="product-view" data-mode="grid" title="Grid view">${I("grid")}</button></div><button class="button button-outline" data-action="manage-categories">${I("tag")}Categories</button><button class="button button-primary" data-action="new-product">${I("plus")}Add product</button></div></div>
       <section class="panel catalogue-panel"><div class="panel-header catalogue-filter-header"><div class="catalogue-controls"><div class="search-box">${I("search")}<input data-filter="products" value="${esc(state.filters.products)}" placeholder="Search name, SKU, barcode or description"></div><select class="select-control" id="productCategoryFilter" aria-label="Filter by category"><option value="">All categories</option>${state.categories.map((category) => `<option value="${category.id}" ${state.productCategoryFilter === category.id ? "selected" : ""}>${esc(category.name)}</option>`).join("")}</select><select class="select-control" id="productStatusFilter" aria-label="Filter by status"><option value="all" ${state.productStatusFilter === "all" ? "selected" : ""}>All statuses</option><option value="favorites" ${state.productStatusFilter === "favorites" ? "selected" : ""}>Favorites</option><option value="low" ${state.productStatusFilter === "low" ? "selected" : ""}>Low stock</option><option value="out" ${state.productStatusFilter === "out" ? "selected" : ""}>Out of stock</option><option value="expiry" ${state.productStatusFilter === "expiry" ? "selected" : ""}>Expiry attention</option><option value="inactive" ${state.productStatusFilter === "inactive" ? "selected" : ""}>Inactive</option><option value="with-image" ${state.productStatusFilter === "with-image" ? "selected" : ""}>With image</option></select><select class="select-control" id="productSort" aria-label="Sort products"><option value="name-asc" ${state.productSort === "name-asc" ? "selected" : ""}>Name A–Z</option><option value="newest" ${state.productSort === "newest" ? "selected" : ""}>Newest first</option><option value="stock-asc" ${state.productSort === "stock-asc" ? "selected" : ""}>Lowest stock</option><option value="price-desc" ${state.productSort === "price-desc" ? "selected" : ""}>Highest price</option><option value="price-asc" ${state.productSort === "price-asc" ? "selected" : ""}>Lowest price</option></select></div><span class="badge primary">${products.length} shown</span></div>
         ${products.length ? (state.productView === "grid" ? `<div class="catalogue-grid">${products.map(productCatalogueCard).join("")}</div>` : `<div class="table-wrap mobile-cards"><table class="data-table product-table"><thead><tr><th>Product</th><th>SKU / Barcode</th><th>Category</th><th>Cost</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr></thead><tbody>${products.map(productRow).join("")}</tbody></table></div>`) : emptyState("No products found", "Change the filters or add a new product to the catalogue.", "package")}
       </section>
+      <button class="mobile-sticky-primary" data-action="new-product">${I("plus")}<span>Add product</span></button>
     </div>`;
   }
 
@@ -2051,17 +2080,31 @@
       (sum, p) => sum + num(p.stock) * num(p.sellingPrice),
       0,
     );
+    const unitsInStock = products.reduce((sum, product) => sum + num(product.stock), 0);
     const low = products.filter((p) => num(p.stock) <= num(p.reorderLevel));
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="stats-grid">${statCard(
-        "Units in stock",
-        products.reduce((s, p) => s + num(p.stock), 0),
-        "boxes",
-        "Across tracked products",
-        "info",
-      )}${statCard("Cost valuation", formatMoney(valueCost), "money", "Based on latest cost prices", "primary")}${statCard("Retail valuation", formatMoney(valueRetail), "chart", "Potential selling value", "success")}${statCard("Low-stock alerts", low.length, "warning", "At or below reorder level", low.length ? "warning" : "success")}</section>
+    const outOfStock = low.filter((product) => num(product.stock) <= 0).length;
+    $("#appView").innerHTML = `<div class="page-stack phase-page inventory-phase-page">
+      ${workspaceHero({
+        eyebrow: "Inventory operations",
+        title: "Know what is available before the next sale.",
+        description:
+          "Monitor live quantities, trace every movement and resolve replenishment risks before they interrupt checkout.",
+        actions: `<button class="button button-primary" data-action="adjust-stock">${I("plus")}Adjust stock</button><button class="button button-outline" data-view="stock-count">${I("clipboard")}Start physical count</button>`,
+        spotlightLabel: "Stock at retail value",
+        spotlightValue: formatMoney(valueRetail),
+        spotlightDetail: `${products.length} tracked products · ${low.length} need attention`,
+        iconName: "boxes",
+        tone: low.length ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Units in stock", unitsInStock, "Across all tracked catalogue products", "boxes", "info")}
+        ${operationMetric("Cost valuation", formatMoney(valueCost), "Current stock at latest purchase cost", "money", "info")}
+        ${operationMetric("Low stock", low.length, `${outOfStock} product${outOfStock === 1 ? "" : "s"} out of stock`, "warning", low.length ? "warning" : "success")}
+        ${operationMetric("Movement records", state.stockMovements.length, "Purchases, sales, returns and adjustments", "activity", "success")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Inventory control</h2><p>Stock levels and every movement recorded on this device</p></div><div class="toolbar-actions"><button class="button button-outline" data-view="stock-count">${I("clipboard")}Start count</button><button class="button button-primary" data-action="adjust-stock">${I("plus")}Adjust stock</button></div></div>
-      <section class="panel"><div class="tabs"><button class="tab-button active" data-action="inventory-tab" data-tab="levels">Stock levels</button><button class="tab-button" data-action="inventory-tab" data-tab="movements">Movement history</button><button class="tab-button" data-action="inventory-tab" data-tab="alerts">Low stock</button></div><div id="inventoryTabBody">${inventoryLevelsHTML(products)}</div></section>
+      <section class="panel phase-tab-panel"><div class="tabs operations-tabs"><button class="tab-button active" data-action="inventory-tab" data-tab="levels">${I("boxes")}Stock levels</button><button class="tab-button" data-action="inventory-tab" data-tab="movements">${I("activity")}Movement history</button><button class="tab-button" data-action="inventory-tab" data-tab="alerts">${I("warning")}Low stock</button></div><div id="inventoryTabBody">${inventoryLevelsHTML(products)}</div></section>
+      <button class="mobile-sticky-primary" data-action="adjust-stock">${I("plus")}<span>Adjust stock</span></button>
     </div>`;
   }
 
@@ -2107,10 +2150,41 @@
 
   function renderStockCount() {
     const counts = state.stockCounts;
-    $("#appView").innerHTML = `<div class="page-stack">
+    const completed = counts.filter((count) => count.status === "completed");
+    const drafts = counts.filter((count) => count.status === "draft");
+    const latest = counts[0];
+    const latestDifferences = latest?.items?.filter(
+      (item) => num(item.difference) !== 0,
+    ).length || 0;
+    const totalCountedProducts = completed.reduce(
+      (sum, count) => sum + (count.items?.length || 0),
+      0,
+    );
+    $("#appView").innerHTML = `<div class="page-stack phase-page stock-count-phase-page">
+      ${workspaceHero({
+        eyebrow: "Inventory assurance",
+        title: "Count, compare and correct stock with confidence.",
+        description:
+          "Run controlled physical counts, review every variance and create a complete stock movement audit trail.",
+        actions: `<button class="button button-primary" data-action="new-stock-count">${I("plus")}New stock count</button><button class="button button-outline" data-view="inventory">${I("boxes")}Return to inventory</button>`,
+        spotlightLabel: latest ? "Latest count" : "Count readiness",
+        spotlightValue: latest ? esc(latest.countNo) : "Ready",
+        spotlightDetail: latest
+          ? `${latestDifferences} difference${latestDifferences === 1 ? "" : "s"} · ${String(latest.status || "draft").replaceAll("-", " ")}`
+          : "Start with the products currently on hand",
+        iconName: "clipboard",
+        tone: drafts.length ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Completed counts", completed.length, "Counts applied to system inventory", "check", "success")}
+        ${operationMetric("Draft counts", drafts.length, "Counts that can still be continued", "edit", drafts.length ? "warning" : "success")}
+        ${operationMetric("Products verified", totalCountedProducts, "Total product lines across completed counts", "package", "info")}
+        ${operationMetric("Latest differences", latestDifferences, "Variance lines in the most recent count", "activity", latestDifferences ? "warning" : "success")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Physical stock counts</h2><p>Use stock counts to correct shrinkage, damage and recording differences</p></div><button class="button button-primary" data-action="new-stock-count">${I("plus")}New stock count</button></div>
-      <section class="notice info">${I("info")}<div><strong>Recommended control:</strong> count stock when sales are paused. Completing a count adjusts system stock and writes an audit movement for every difference.</div></section>
+      <section class="count-guidance panel"><div class="count-guidance-heading"><span>${I("info")}</span><div><strong>Run a controlled count</strong><p>Pause sales during the count so system quantities do not change while staff are checking shelves.</p></div></div><ol class="count-workflow"><li><span>1</span><div><strong>Select products</strong><small>Choose a full or targeted product list.</small></div></li><li><span>2</span><div><strong>Enter physical quantities</strong><small>Record what staff can verify on the shelf.</small></div></li><li><span>3</span><div><strong>Review and apply</strong><small>Approve differences and write the audit movements.</small></div></li></ol></section>
       <section class="panel"><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Count</th><th>Started</th><th>Completed</th><th>Products</th><th>Differences</th><th>Status</th><th></th></tr></thead><tbody>${counts.length ? counts.map((count) => `<tr><td data-label="Count"><strong>${esc(count.countNo)}</strong></td><td data-label="Started">${formatDateTime(count.startedAt)}</td><td data-label="Completed">${formatDateTime(count.completedAt)}</td><td data-label="Products">${count.items?.length || 0}</td><td data-label="Differences">${count.items?.filter((item) => num(item.difference) !== 0).length || 0}</td><td data-label="Status">${statusBadge(count.status)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-stock-count" data-id="${count.id}">${I("eye")}</button>${count.status === "draft" ? `<button class="mini-button" data-action="continue-stock-count" data-id="${count.id}">${I("edit")}</button>` : ""}</div></td></tr>`).join("") : `<tr><td colspan="7">${emptyState("No stock counts", "Start a physical count to verify inventory accuracy.", "clipboard")}</td></tr>`}</tbody></table></div></section>
+      <button class="mobile-sticky-primary" data-action="new-stock-count">${I("plus")}<span>New stock count</span></button>
     </div>`;
   }
 
@@ -2149,8 +2223,26 @@
         ),
       0,
     );
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="stats-grid">${statCard("Open purchase orders", openOrders.length, "clipboard", "Draft, ordered and partially received", "primary")}${statCard("Value still on order", formatMoney(valueOnOrder), "money", "Remaining supplier order value", "info")}${statCard("Stock received", formatMoney(total), "truck", "Value of recorded deliveries", "success")}${statCard("Supplier balances", formatMoney(due), "credit", `${state.suppliers.filter((s) => num(s.balance) > 0).length} suppliers owed`, "warning")}</section>
+    const suppliersOwed = state.suppliers.filter((supplier) => num(supplier.balance) > 0).length;
+    $("#appView").innerHTML = `<div class="page-stack phase-page purchases-phase-page">
+      ${workspaceHero({
+        eyebrow: "Supply operations",
+        title: "Move every supplier order from request to shelf.",
+        description:
+          "Create purchase orders, monitor delivery progress, receive stock and control supplier balances from one workflow.",
+        actions: `<button class="button button-primary" data-action="new-purchase-order">${I("plus")}New purchase order</button><button class="button button-outline" data-action="new-purchase">${I("truck")}Receive delivery</button>`,
+        spotlightLabel: "Value still on order",
+        spotlightValue: formatMoney(valueOnOrder),
+        spotlightDetail: `${openOrders.length} open order${openOrders.length === 1 ? "" : "s"} across active suppliers`,
+        iconName: "truck",
+        tone: openOrders.length ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Open orders", openOrders.length, "Draft, ordered and partially received", "clipboard", openOrders.length ? "warning" : "success")}
+        ${operationMetric("Received stock", formatMoney(total), "Value of all recorded supplier deliveries", "truck", "success")}
+        ${operationMetric("Supplier balances", formatMoney(due), `${suppliersOwed} supplier${suppliersOwed === 1 ? "" : "s"} currently owed`, "credit", due ? "warning" : "success")}
+        ${operationMetric("Received records", purchases.length, "Deliveries matching the current search", "list", "info")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Purchasing control centre</h2><p>Create supplier orders, track delivery progress and receive stock</p></div><div class="toolbar-actions"><button class="button button-outline" data-action="new-purchase">${I("truck")}Receive without order</button><button class="button button-primary" data-action="new-purchase-order">${I("plus")}New purchase order</button></div></div>
       <section class="panel"><div class="panel-header"><div><h2>Purchase orders</h2><p>Draft, submit and receive supplier orders</p></div><div class="search-box">${I("search")}<input data-filter="purchases" value="${esc(state.filters.purchases)}" placeholder="Search order, purchase or supplier"></div></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Order</th><th>Supplier</th><th>Expected</th><th>Progress</th><th>Value</th><th>Status</th><th></th></tr></thead><tbody>${orders.length ? orders.map((order) => {
         const ordered = (order.items || []).reduce((sum, item) => sum + num(item.quantity), 0);
@@ -2159,6 +2251,7 @@
         return `<tr><td data-label="Order"><div class="cell-copy"><strong>${esc(order.purchaseOrderNo)}</strong><span>${esc(order.reference || "No reference")}</span></div></td><td data-label="Supplier">${esc(order.supplierName || supplierName(order.supplierId))}</td><td data-label="Expected">${formatDate(order.expectedDate)}</td><td data-label="Progress"><strong>${received} / ${ordered}</strong><span class="table-subtext">units received</span></td><td data-label="Value"><strong>${formatMoney(order.total)}</strong></td><td data-label="Status">${statusBadge(order.status)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-purchase-order" data-id="${order.id}" title="View order">${I("eye")}</button>${order.status === "draft" ? `<button class="mini-button" data-action="edit-purchase-order" data-id="${order.id}" title="Edit order">${I("edit")}</button><button class="mini-button" data-action="submit-purchase-order" data-id="${order.id}" title="Mark ordered">${I("check")}</button>` : ""}${canReceive ? `<button class="mini-button success" data-action="receive-purchase-order" data-id="${order.id}" title="Receive stock">${I("truck")}</button>` : ""}${["draft", "ordered", "partially-received"].includes(order.status) ? `<button class="mini-button danger" data-action="cancel-purchase-order" data-id="${order.id}" title="Cancel order">${I("close")}</button>` : ""}</div></td></tr>`;
       }).join("") : `<tr><td colspan="7">${emptyState("No purchase orders", "Create an order before the next supplier delivery.", "clipboard")}</td></tr>`}</tbody></table></div></section>
       <section class="panel"><div class="panel-header"><div><h2>Received purchases</h2><p>Saving a delivery automatically increases product stock</p></div><button class="button button-outline" data-action="export-purchases">${I("download")}Export CSV</button></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Purchase</th><th>Date</th><th>Supplier</th><th>Order</th><th>Items</th><th>Total</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>${purchases.length ? purchases.map((p) => `<tr><td data-label="Purchase"><div class="cell-copy"><strong>${esc(p.purchaseNo)}</strong><span>${esc(p.reference || "No supplier reference")}</span></div></td><td data-label="Date">${formatDate(p.date)}</td><td data-label="Supplier">${esc(p.supplierName || supplierName(p.supplierId))}</td><td data-label="Order">${esc(p.purchaseOrderNo || "Direct")}</td><td data-label="Items">${p.items?.length || 0}</td><td data-label="Total"><strong>${formatMoney(p.total)}</strong></td><td data-label="Balance">${formatMoney(p.balance)}</td><td data-label="Status">${statusBadge(p.status)}</td><td data-label="Actions"><button class="mini-button" data-action="view-purchase" data-id="${p.id}">${I("eye")}</button></td></tr>`).join("") : `<tr><td colspan="9">${emptyState("No purchases received", "Receive a supplier delivery to increase stock.", "truck")}</td></tr>`}</tbody></table></div></section>
+      <button class="mobile-sticky-primary" data-action="new-purchase-order">${I("plus")}<span>New purchase order</span></button>
     </div>`;
   }
 
@@ -2173,9 +2266,42 @@
             .includes(query),
         ),
     );
-    $("#appView").innerHTML = `<div class="page-stack">
+    const totalPurchases = state.suppliers.reduce(
+      (sum, supplier) => sum + num(supplier.totalPurchases),
+      0,
+    );
+    const outstanding = state.suppliers.reduce(
+      (sum, supplier) => sum + num(supplier.balance),
+      0,
+    );
+    const suppliersOwed = state.suppliers.filter(
+      (supplier) => num(supplier.balance) > 0,
+    ).length;
+    const activeOrders = state.purchaseOrders.filter((order) =>
+      ["draft", "ordered", "partially-received"].includes(order.status),
+    ).length;
+    $("#appView").innerHTML = `<div class="page-stack phase-page suppliers-phase-page">
+      ${workspaceHero({
+        eyebrow: "Supplier relationships",
+        title: "Keep purchasing contacts and obligations in one place.",
+        description:
+          "Review supplier contacts, purchase activity, open orders and outstanding balances before making the next commitment.",
+        actions: `<button class="button button-primary" data-action="new-supplier">${I("plus")}Add supplier</button><button class="button button-outline" data-view="purchases">${I("truck")}Open purchases</button>`,
+        spotlightLabel: "Accounts payable",
+        spotlightValue: formatMoney(outstanding),
+        spotlightDetail: `${suppliersOwed} supplier${suppliersOwed === 1 ? "" : "s"} currently owed`,
+        iconName: "supplier",
+        tone: outstanding ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Suppliers", state.suppliers.length, `${suppliers.length} matching the current search`, "supplier", "info")}
+        ${operationMetric("Lifetime purchases", formatMoney(totalPurchases), "Recorded supplier stock value", "chart", "success")}
+        ${operationMetric("Active orders", activeOrders, "Orders still awaiting completion", "clipboard", activeOrders ? "warning" : "success")}
+        ${operationMetric("Outstanding", formatMoney(outstanding), "Total amount payable to suppliers", "credit", outstanding ? "warning" : "success")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Supplier directory</h2><p>Manage contacts, purchase history and amounts payable</p></div><button class="button button-primary" data-action="new-supplier">${I("plus")}Add supplier</button></div>
       <section class="panel"><div class="panel-header"><div class="search-box">${I("search")}<input data-filter="suppliers" value="${esc(state.filters.suppliers)}" placeholder="Search supplier"></div><span class="badge primary">${suppliers.length} suppliers</span></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Supplier</th><th>Contact</th><th>Total purchases</th><th>Outstanding</th><th>Last purchase</th><th></th></tr></thead><tbody>${suppliers.length ? suppliers.map((s) => `<tr><td data-label="Supplier"><div class="cell-title"><div class="entity-avatar">${esc(initials(s.name))}</div><div class="cell-copy"><strong>${esc(s.name)}</strong><span>${esc(s.address || "No address")}</span></div></div></td><td data-label="Contact"><div class="cell-copy"><strong>${esc(s.phone || "—")}</strong><span>${esc(s.email || "No email")}</span></div></td><td data-label="Purchases">${formatMoney(s.totalPurchases)}</td><td data-label="Outstanding"><strong>${formatMoney(s.balance)}</strong></td><td data-label="Last purchase">${formatDate(s.lastPurchaseAt)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-supplier" data-id="${s.id}">${I("eye")}</button><button class="mini-button" data-action="supplier-payment" data-id="${s.id}">${I("money")}</button><button class="mini-button" data-action="edit-supplier" data-id="${s.id}">${I("edit")}</button></div></td></tr>`).join("") : `<tr><td colspan="6">${emptyState("No suppliers", "Add suppliers before recording purchase deliveries.", "supplier")}</td></tr>`}</tbody></table></div></section>
+      <button class="mobile-sticky-primary" data-action="new-supplier">${I("plus")}<span>Add supplier</span></button>
     </div>`;
   }
 
@@ -2190,11 +2316,41 @@
             .includes(query),
         ),
     );
-    const due = customers.reduce((s, c) => s + num(c.balance), 0);
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="stats-grid">${statCard("Customers", state.customers.length, "users", "Saved customer accounts", "info")}${statCard("Credit outstanding", formatMoney(due), "credit", "Total amount customers owe", due ? "warning" : "success")}${statCard("Credit customers", state.customers.filter((c) => num(c.balance) > 0).length, "wallet", "Accounts with a balance", "warning")}${statCard("Customer sales", formatMoney(state.customers.reduce((s, c) => s + num(c.totalPurchases), 0)), "chart", "Recorded lifetime purchases", "success")}</section>
+    const due = state.customers.reduce((sum, customer) => sum + num(customer.balance), 0);
+    const creditCustomers = state.customers.filter(
+      (customer) => num(customer.balance) > 0,
+    );
+    const totalPurchases = state.customers.reduce(
+      (sum, customer) => sum + num(customer.totalPurchases),
+      0,
+    );
+    const nearLimit = creditCustomers.filter(
+      (customer) =>
+        num(customer.creditLimit) > 0 &&
+        num(customer.balance) >= num(customer.creditLimit) * 0.8,
+    ).length;
+    $("#appView").innerHTML = `<div class="page-stack phase-page customers-phase-page">
+      ${workspaceHero({
+        eyebrow: "Customer relationships",
+        title: "Serve regular customers without losing control of credit.",
+        description:
+          "Keep contact details, lifetime purchase value, credit limits and repayments connected to every customer account.",
+        actions: `<button class="button button-primary" data-action="new-customer">${I("plus")}Add customer</button><button class="button button-outline" data-view="pos">${I("cart")}Start customer sale</button>`,
+        spotlightLabel: "Credit receivable",
+        spotlightValue: formatMoney(due),
+        spotlightDetail: `${creditCustomers.length} customer account${creditCustomers.length === 1 ? "" : "s"} with a balance`,
+        iconName: "users",
+        tone: due ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Customers", state.customers.length, `${customers.length} matching the current search`, "users", "info")}
+        ${operationMetric("Lifetime sales", formatMoney(totalPurchases), "Recorded purchases across customer accounts", "chart", "success")}
+        ${operationMetric("Credit accounts", creditCustomers.length, "Customers with an outstanding balance", "credit", creditCustomers.length ? "warning" : "success")}
+        ${operationMetric("Near credit limit", nearLimit, "Accounts using at least 80% of their limit", "warning", nearLimit ? "warning" : "success")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Customer accounts</h2><p>Track sales, credit limits and repayments</p></div><button class="button button-primary" data-action="new-customer">${I("plus")}Add customer</button></div>
       <section class="panel"><div class="panel-header"><div class="search-box">${I("search")}<input data-filter="customers" value="${esc(state.filters.customers)}" placeholder="Search name or phone"></div><button class="button button-outline" data-action="export-customers">${I("download")}Export CSV</button></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Customer</th><th>Contact</th><th>Total purchases</th><th>Credit balance</th><th>Credit limit</th><th>Last purchase</th><th></th></tr></thead><tbody>${customers.length ? customers.map((c) => `<tr><td data-label="Customer"><div class="cell-title"><div class="entity-avatar">${esc(initials(c.name))}</div><div class="cell-copy"><strong>${esc(c.name)}</strong><span>Joined ${formatDate(c.createdAt, { short: true })}</span></div></div></td><td data-label="Contact"><div class="cell-copy"><strong>${esc(c.phone || "—")}</strong><span>${esc(c.email || c.address || "No additional contact")}</span></div></td><td data-label="Purchases">${formatMoney(c.totalPurchases)}</td><td data-label="Balance"><strong>${formatMoney(c.balance)}</strong></td><td data-label="Limit">${num(c.creditLimit) ? formatMoney(c.creditLimit) : "No limit set"}</td><td data-label="Last purchase">${formatDate(c.lastPurchaseAt)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-customer" data-id="${c.id}">${I("eye")}</button><button class="mini-button" data-action="customer-payment" data-id="${c.id}">${I("money")}</button><button class="mini-button" data-action="edit-customer" data-id="${c.id}">${I("edit")}</button></div></td></tr>`).join("") : `<tr><td colspan="7">${emptyState("No customers", "Add customers to track purchase history and credit.", "users")}</td></tr>`}</tbody></table></div></section>
+      <button class="mobile-sticky-primary" data-action="new-customer">${I("plus")}<span>Add customer</span></button>
     </div>`;
   }
 
@@ -2313,9 +2469,9 @@
       (alert) => alertDisplayStatus(alert) === "snoozed",
     );
     const categories = [...new Set(allAlerts.map((alert) => alert.category))];
-    $("#appView").innerHTML = `<div class="page-stack alerts-page">
+    $("#appView").innerHTML = `<div class="page-stack phase-page alerts-page">
       <section class="alerts-hero"><div><span class="eyebrow">Operational intelligence</span><h2>Focus on what needs action now.</h2><p>Alerts are generated from live stock, expiry, approval, purchasing, credit, expense and backup records. They clear automatically when the underlying issue is resolved.</p></div><div class="alerts-hero-score"><span>Open attention items</span><strong>${open.length}</strong><small>${critical.length} critical</small></div></section>
-      <section class="stats-grid">${statCard("Open alerts", open.length, "bell", "Unacknowledged and ready for action", open.length ? "warning" : "success")}${statCard("Critical", critical.length, "warning", "High-priority operational risks", critical.length ? "danger" : "success")}${statCard("Acknowledged", acknowledged.length, "check", "Reviewed while the condition remains", "info")}${statCard("Snoozed", snoozed.length, "calendar", "Temporarily hidden from the active count", "primary")}</section>
+      <section class="operation-metric-strip">${operationMetric("Open alerts", open.length, "Unacknowledged and ready for action", "bell", open.length ? "warning" : "success")}${operationMetric("Critical", critical.length, "High-priority operational risks", "warning", critical.length ? "warning" : "success")}${operationMetric("Acknowledged", acknowledged.length, "Reviewed while the condition remains", "check", "info")}${operationMetric("Snoozed", snoozed.length, "Temporarily hidden from the active count", "calendar", "info")}</section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Alerts inbox</h2><p>Acknowledging an alert records attention; it does not change stock, payments or approvals.</p></div><div class="toolbar-actions"><button class="button button-outline" data-action="acknowledge-all-alerts" ${open.length ? "" : "disabled"}>${I("check")}Acknowledge all</button><button class="button button-primary" data-action="open-alert-settings">${I("settings")}Alert settings</button></div></div>
       <section class="panel"><div class="panel-header alert-filter-bar"><div class="search-box">${I("search")}<input data-filter="alerts" value="${esc(state.filters.alerts)}" placeholder="Search alerts"></div><select class="select-control" id="alertSeverityFilter"><option value="all">All priorities</option><option value="critical" ${state.alertSeverityFilter === "critical" ? "selected" : ""}>Critical</option><option value="warning" ${state.alertSeverityFilter === "warning" ? "selected" : ""}>Warning</option></select><select class="select-control" id="alertCategoryFilter"><option value="all">All categories</option>${categories.map((category) => `<option value="${category}" ${state.alertCategoryFilter === category ? "selected" : ""}>${esc(alertCategoryLabel(category))}</option>`).join("")}</select><select class="select-control" id="alertStatusFilter"><option value="open" ${state.alertStatusFilter === "open" ? "selected" : ""}>Open</option><option value="acknowledged" ${state.alertStatusFilter === "acknowledged" ? "selected" : ""}>Acknowledged</option><option value="snoozed" ${state.alertStatusFilter === "snoozed" ? "selected" : ""}>Snoozed</option><option value="all" ${state.alertStatusFilter === "all" ? "selected" : ""}>All states</option></select></div>
         ${alerts.length ? `<div class="alert-list">${alerts.map((alert) => {
@@ -2442,9 +2598,9 @@
     const approvalHistory = state.approvalRequests
       .filter((request) => request.type === "expense")
       .slice(0, 8);
-    $("#appView").innerHTML = `<div class="page-stack expenses-page">
+    $("#appView").innerHTML = `<div class="page-stack phase-page expenses-page">
       <section class="expense-hero"><div><span class="eyebrow">Financial control</span><h2>Know where every operating shilling goes.</h2><p>Capture evidence, schedule amounts due, control high-value approvals and keep paid expenses connected to the cash register.</p></div><button class="button hero-primary" data-action="new-expense">${I("plus")}Record expense</button></section>
-      <section class="stats-grid">${statCard("This month", formatMoney(month), "wallet", "Approved operating costs", "warning")}${statCard("Outstanding", formatMoney(outstanding), "calendar", `${overdue.length} overdue expense(s)`, outstanding ? "danger" : "success")}${statCard("Pending approval", pendingApprovals.length, "lock", "High-value expenses awaiting review", pendingApprovals.length ? "warning" : "success")}${statCard("Expense records", state.expenses.length, "list", `${state.expenses.filter((expense) => expense.receiptData).length} with receipt evidence`, "info")}</section>
+      <section class="operation-metric-strip">${operationMetric("This month", formatMoney(month), "Approved operating costs", "wallet", "warning")}${operationMetric("Outstanding", formatMoney(outstanding), `${overdue.length} overdue expense${overdue.length === 1 ? "" : "s"}`, "calendar", outstanding ? "warning" : "success")}${operationMetric("Pending approval", pendingApprovals.length, "High-value expenses awaiting review", "lock", pendingApprovals.length ? "warning" : "success")}${operationMetric("Expense records", state.expenses.length, `${state.expenses.filter((expense) => expense.receiptData).length} with receipt evidence`, "list", "info")}</section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Expense ledger</h2><p>Filter operating costs by period, category and control status.</p></div><div class="toolbar-actions"><button class="button button-outline" data-action="export-expenses">${I("download")}Export CSV</button><button class="button button-primary" data-action="new-expense">${I("plus")}Add expense</button></div></div>
       <section class="expense-layout"><article class="panel expense-ledger-panel"><div class="panel-header expense-filter-bar"><div class="search-box">${I("search")}<input data-filter="expenses" value="${esc(state.filters.expenses)}" placeholder="Search number, vendor or description"></div><select class="select-control" id="expensePeriodFilter"><option value="month" ${state.expensePeriodFilter === "month" ? "selected" : ""}>This month</option><option value="today" ${state.expensePeriodFilter === "today" ? "selected" : ""}>Today</option><option value="7d" ${state.expensePeriodFilter === "7d" ? "selected" : ""}>Last 7 days</option><option value="year" ${state.expensePeriodFilter === "year" ? "selected" : ""}>This year</option><option value="all" ${state.expensePeriodFilter === "all" ? "selected" : ""}>All time</option></select><select class="select-control" id="expenseStatusFilter"><option value="all">All statuses</option>${["paid", "unpaid", "overdue", "pending-approval", "rejected", "voided"].map((status) => `<option value="${status}" ${state.expenseStatusFilter === status ? "selected" : ""}>${esc(status.replaceAll("-", " "))}</option>`).join("")}</select><select class="select-control" id="expenseCategoryFilter"><option value="all">All categories</option>${EXPENSE_CATEGORIES.map((category) => `<option ${state.expenseCategoryFilter === category ? "selected" : ""}>${esc(category)}</option>`).join("")}</select></div><div class="table-wrap mobile-cards"><table class="data-table expense-table"><thead><tr><th>Expense</th><th>Vendor</th><th>Date / due</th><th>Category</th><th>Payment</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${expenses.length ? expenses.map((expense) => {
         const status = expenseDisplayStatus(expense);
@@ -2470,6 +2626,7 @@
       }).join("") : `<tr><td colspan="8">${emptyState("No expenses match", "Change the filters or record a new operating expense.", "wallet")}</td></tr>`}</tbody></table></div></article>
         <aside class="expense-insights"><article class="panel"><div class="panel-header"><div><h2>Category allocation</h2><p>Approved expenses in the current filtered view</p></div></div>${categoryMap.size ? `<div class="progress-list">${[...categoryMap.entries()].sort((a, b) => b[1] - a[1]).map(([category, value]) => progressRow(category, value, maxCategory, formatMoney(value))).join("")}</div>` : emptyState("No category data", "Approved expenses will build this breakdown.", "chart")}</article><article class="panel"><div class="panel-header"><div><h2>Approval activity</h2><p>Recent high-value expense decisions</p></div></div>${approvalHistory.length ? `<div class="list-stack">${approvalHistory.map((approval) => `<button class="list-row expense-approval-row" data-action="view-approval" data-id="${approval.id}"><div class="list-main"><div class="list-icon">${I("lock")}</div><div class="list-copy"><strong>${esc(approval.approvalNo)}</strong><span>${esc(approval.reason || "Expense approval")}</span></div></div><div class="list-value">${statusBadge(approval.status)}<span>${formatMoney(approval.amount)}</span></div></button>`).join("")}</div>` : emptyState("No expense approvals", "High-value expenses will appear here when approval control is enabled.", "lock")}</article></aside>
       </section>
+      <button class="mobile-sticky-primary" data-action="new-expense">${I("plus")}<span>Record expense</span></button>
     </div>`;
   }
 
@@ -2634,9 +2791,21 @@
       (s, p) => s + num(p.stock) * num(p.purchasePrice),
       0,
     );
-    $("#appView").innerHTML = `<div class="page-stack">
+    $("#appView").innerHTML = `<div class="page-stack phase-page reports-phase-page">
+      ${workspaceHero({
+        eyebrow: "Business intelligence",
+        title: "Turn daily transactions into operating decisions.",
+        description:
+          "Review sales, profit, expenses, stock health and credit obligations using records stored on this device.",
+        actions: `<button class="button button-primary" data-action="export-report">${I("download")}Export report</button><button class="button button-outline" data-view="dashboard">${I("dashboard")}Open command centre</button>`,
+        spotlightLabel: "Estimated net profit",
+        spotlightValue: formatMoney(data.netProfit),
+        spotlightDetail: `${data.sales.length} completed receipt${data.sales.length === 1 ? "" : "s"} in the selected period`,
+        iconName: "chart",
+        tone: data.netProfit >= 0 ? "ready" : "attention",
+      })}
       <div class="page-toolbar"><div class="toolbar-title"><h2>Business performance</h2><p>Financial estimates based on transactions stored on this device</p></div><div class="toolbar-actions"><select class="select-control" id="reportPeriod"><option value="today" ${state.reportPeriod === "today" ? "selected" : ""}>Today</option><option value="7d" ${state.reportPeriod === "7d" ? "selected" : ""}>Last 7 days</option><option value="30d" ${state.reportPeriod === "30d" ? "selected" : ""}>Last 30 days</option><option value="month" ${state.reportPeriod === "month" ? "selected" : ""}>This month</option><option value="year" ${state.reportPeriod === "year" ? "selected" : ""}>This year</option><option value="all" ${state.reportPeriod === "all" ? "selected" : ""}>All time</option></select><button class="button button-outline" data-action="export-report">${I("download")}Export report</button></div></div>
-      <section class="stats-grid">${statCard("Net sales", formatMoney(data.netSales), "money", `${data.sales.length} completed receipts`, "success")}${statCard("Gross profit", formatMoney(data.grossProfit), "chart", "Net sales less product cost", "info")}${statCard("Operating expenses", formatMoney(data.expenseTotal), "wallet", `${data.expenses.length} expense entries`, "warning")}${statCard("Estimated net profit", formatMoney(data.netProfit), "activity", "Gross profit less expenses", data.netProfit >= 0 ? "success" : "danger")}</section>
+      <section class="operation-metric-strip">${operationMetric("Net sales", formatMoney(data.netSales), `${data.sales.length} completed receipts`, "money", "success")}${operationMetric("Gross profit", formatMoney(data.grossProfit), "Net sales less product cost", "chart", "info")}${operationMetric("Operating expenses", formatMoney(data.expenseTotal), `${data.expenses.length} expense entries`, "wallet", "warning")}${operationMetric("Net margin", data.netSales ? `${((data.netProfit / data.netSales) * 100).toFixed(1)}%` : "0.0%", "Estimated net profit divided by net sales", "activity", data.netProfit >= 0 ? "success" : "warning")}</section>
       <section class="report-grid">
         <article class="panel"><div class="panel-header"><div><h2>Top-selling products</h2><p>Ranked by quantity sold</p></div></div>${topProducts.length ? `<div class="ranking-list">${topProducts.map((p, index) => `<div class="ranking-row"><div class="rank">${index + 1}</div><div class="ranking-copy"><strong>${esc(p.name)}</strong><span>${num(p.qty)} units sold</span></div><div class="ranking-value">${formatMoney(p.revenue)}</div></div>`).join("")}</div>` : emptyState("No sales in period", "Change the report period or complete sales.", "chart")}</article>
         <article class="panel"><div class="panel-header"><div><h2>Payment methods</h2><p>Collected amount by payment channel</p></div></div>${
@@ -2731,7 +2900,7 @@
     const backupHealthy =
       backupDays !== null &&
       backupDays <= clamp(num(state.business.backupReminderDays) || 7, 1, 90);
-    $("#appView").innerHTML = `<div class="page-stack settings-page">
+    $("#appView").innerHTML = `<div class="page-stack phase-page settings-page">
       <section class="settings-hero"><div><span class="eyebrow">Operations control centre</span><h2>Make the POS work your way.</h2><p>Configure branding, accessibility, checkout sounds, alerts, stock policy and device recovery from one organized workspace.</p></div><div class="settings-health"><div class="${state.business.approvalPinHash ? "ready" : "attention"}">${I("lock")}<span><strong>${state.business.approvalPinHash ? "PIN protected" : "PIN needed"}</strong><small>${pending} pending approval(s)</small></span></div><div class="${backupHealthy ? "ready" : "attention"}">${I("database")}<span><strong>${backupHealthy ? "Backup current" : "Backup due"}</strong><small>${lastBackup ? `${backupDays} day(s) ago` : "Not backed up yet"}</small></span></div><div class="ready">${I("check")}<span><strong>Offline ready</strong><small>Version ${APP_VERSION} · DB v6</small></span></div></div></section>
       <section class="settings-workspace"><aside class="settings-nav panel"><div class="settings-nav-heading"><strong>Settings</strong><span>Select a category</span></div>${settingsNavButton("business", "store", "Business profile", "Identity, currency and tax")}${settingsNavButton("appearance", "image", "Appearance", "Colours and accessibility")}${settingsNavButton("checkout", "cart", "Checkout", "Payments and sale flow")}${settingsNavButton("receipts", "receipt", "Receipts", "Branding and content")}${settingsNavButton("inventory", "boxes", "Inventory", "Alerts and stock policy")}${settingsNavButton("security", "lock", "Approvals", "Returns and void control")}${settingsNavButton("data", "database", "Data & device", "Backup, exports and install")}</aside><div class="settings-content">${settingsSectionContent(installed)}</div></section>
       <input type="file" id="backupInput" accept="application/json" hidden>

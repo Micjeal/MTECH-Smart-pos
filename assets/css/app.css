@@ -6691,6 +6691,276 @@ html[data-reduced-motion="true"] *::after {
   }
 }
 
+/* MTECH Smart POS 4.4 — complete operational workspace system */
+.workspace-operations-hero {
+  position: relative;
+  overflow: hidden;
+}
+.workspace-operations-hero.ready {
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--line));
+}
+.workspace-operations-hero.attention {
+  border-color: color-mix(in srgb, var(--warning) 32%, var(--line));
+}
+.workspace-hero-copy {
+  min-width: 0;
+}
+.workspace-spotlight {
+  min-width: 0;
+  min-height: 134px;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--line));
+  border-radius: 19px;
+  background: var(--primary-soft);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+.workspace-operations-hero.attention .workspace-spotlight {
+  border-color: color-mix(in srgb, var(--warning) 28%, var(--line));
+  background: var(--warning-soft);
+}
+.workspace-spotlight-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  background: var(--primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+.workspace-operations-hero.attention .workspace-spotlight-icon {
+  background: var(--warning);
+}
+.workspace-spotlight-icon .icon {
+  width: 24px;
+  height: 24px;
+}
+.workspace-spotlight > div,
+.workspace-spotlight span,
+.workspace-spotlight strong,
+.workspace-spotlight small {
+  min-width: 0;
+  display: block;
+}
+.workspace-spotlight > div > span {
+  color: var(--muted);
+  font-size: 8.5px;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.workspace-spotlight strong {
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  font-size: clamp(18px, 2.4vw, 27px);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+.workspace-spotlight small {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 8.5px;
+  line-height: 1.45;
+}
+.phase-page > .page-toolbar {
+  min-height: 82px;
+  padding: 15px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+.phase-tab-panel {
+  overflow: hidden;
+}
+.operations-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.operations-tabs .tab-button {
+  min-height: 43px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.operations-tabs .tab-button .icon {
+  width: 16px;
+  height: 16px;
+}
+.operations-tabs .tab-button.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+.count-guidance {
+  padding: 18px;
+}
+.count-guidance-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+}
+.count-guidance-heading > span {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: var(--info-soft);
+  color: var(--info);
+  display: grid;
+  place-items: center;
+}
+.count-guidance-heading > span .icon {
+  width: 19px;
+  height: 19px;
+}
+.count-guidance-heading strong,
+.count-guidance-heading p {
+  display: block;
+}
+.count-guidance-heading strong {
+  font-size: 12px;
+}
+.count-guidance-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+.count-workflow {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin: 16px 0 0;
+  padding: 0;
+}
+.count-workflow li {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-2);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+}
+.count-workflow li > span {
+  width: 27px;
+  height: 27px;
+  border-radius: 9px;
+  background: var(--primary);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 900;
+}
+.count-workflow strong,
+.count-workflow small {
+  display: block;
+}
+.count-workflow strong {
+  font-size: 9.5px;
+}
+.count-workflow small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.4;
+}
+.reports-phase-page .report-grid > .panel,
+.purchases-phase-page > .panel,
+.customers-phase-page > .panel,
+.suppliers-phase-page > .panel,
+.products-phase-page > .panel,
+.stock-count-phase-page > .panel {
+  box-shadow: 0 10px 32px rgba(20, 66, 58, 0.035);
+}
+
+@media (max-width: 900px) {
+  body[data-current-view="products"] .view-container,
+  body[data-current-view="inventory"] .view-container,
+  body[data-current-view="stock-count"] .view-container,
+  body[data-current-view="purchases"] .view-container,
+  body[data-current-view="customers"] .view-container,
+  body[data-current-view="suppliers"] .view-container,
+  body[data-current-view="expenses"] .view-container {
+    padding-bottom: calc(154px + var(--safe-bottom));
+  }
+  .workspace-operations-hero {
+    grid-template-columns: 1fr;
+  }
+  .workspace-spotlight {
+    width: 100%;
+  }
+  .phase-page > .page-toolbar {
+    align-items: flex-start;
+  }
+  .operations-tabs {
+    overflow-x: auto;
+    grid-template-columns: repeat(3, minmax(145px, 1fr));
+    scrollbar-width: none;
+  }
+  .operations-tabs::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 650px) {
+  .workspace-spotlight {
+    min-height: 104px;
+    padding: 15px;
+    border-radius: 15px;
+  }
+  .workspace-spotlight-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 13px;
+  }
+  .workspace-spotlight-icon .icon {
+    width: 20px;
+    height: 20px;
+  }
+  .workspace-spotlight strong {
+    font-size: 19px;
+  }
+  .phase-page > .page-toolbar {
+    min-height: 0;
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .phase-page > .page-toolbar .toolbar-actions {
+    width: 100%;
+  }
+  .phase-page > .page-toolbar .toolbar-actions > .button,
+  .phase-page > .page-toolbar > .button {
+    flex: 1;
+  }
+  .count-guidance {
+    padding: 15px;
+  }
+  .count-workflow {
+    grid-template-columns: 1fr;
+  }
+  .count-workflow li {
+    min-height: 62px;
+  }
+  .reports-phase-page .report-grid {
+    gap: 10px;
+  }
+}
+
 @media (max-width: 390px) {
   .phase-quick-actions {
     grid-template-columns: 1fr;
