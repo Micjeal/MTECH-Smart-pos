@@ -28,6 +28,43 @@
       .slice(0, 10);
   const MAX_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
   const TARGET_PRODUCT_IMAGE_BYTES = 520 * 1024;
+  const APP_VERSION = "4.2.0";
+  const DEFAULT_PRODUCT_IMAGES = {
+    "prod-001": "/assets/images/products/sugar-1kg.webp",
+    "prod-003": "/assets/images/products/mineral-water-500ml.webp",
+    "prod-005": "/assets/images/products/laundry-soap-bar.webp",
+    "prod-007": "/assets/images/products/cooking-oil-1l.webp",
+    "prod-008": "/assets/images/products/bread-loaf.webp",
+  };
+  const THEME_PRESETS = {
+    emerald: { primary: "#0b6b5e", highlight: "#e6a817", canvas: "#f4f7f6" },
+    ocean: { primary: "#126782", highlight: "#f29e4c", canvas: "#f2f7f9" },
+    royal: { primary: "#4f46a5", highlight: "#e49b2f", canvas: "#f6f5fb" },
+    berry: { primary: "#8c3454", highlight: "#db8c36", canvas: "#faf4f6" },
+  };
+  const SOUND_PATTERNS = {
+    scan: [
+      { frequency: 940, duration: 0.08, delay: 0 },
+    ],
+    success: [
+      { frequency: 520, duration: 0.09, delay: 0 },
+      { frequency: 660, duration: 0.1, delay: 0.08 },
+      { frequency: 820, duration: 0.14, delay: 0.17 },
+    ],
+    bright: [
+      { frequency: 620, duration: 0.08, delay: 0 },
+      { frequency: 930, duration: 0.13, delay: 0.1 },
+    ],
+    gentle: [
+      { frequency: 440, duration: 0.13, delay: 0 },
+      { frequency: 560, duration: 0.18, delay: 0.12 },
+    ],
+    urgent: [
+      { frequency: 760, duration: 0.11, delay: 0 },
+      { frequency: 610, duration: 0.11, delay: 0.14 },
+      { frequency: 760, duration: 0.11, delay: 0.28 },
+    ],
+  };
   const EXPENSE_CATEGORIES = [
     "Rent",
     "Utilities",
@@ -66,7 +103,22 @@
     confirmClearCart: true,
     hapticFeedback: true,
     scanSound: true,
+    checkoutSoundEnabled: true,
+    checkoutSound: "success",
+    alertSoundEnabled: true,
+    alertSound: "gentle",
+    soundVolume: 55,
+    alertSoundCooldownMinutes: 30,
     interfaceDensity: "comfortable",
+    appThemePreset: "emerald",
+    appPrimaryColor: "#0b6b5e",
+    appHighlightColor: "#e6a817",
+    appCanvasColor: "#f4f7f6",
+    textScale: "standard",
+    highContrast: false,
+    reducedMotion: false,
+    largeTouchTargets: false,
+    accessibilityConfigured: false,
     productView: "table",
     showDashboardHero: true,
     lowStockEnabled: true,
@@ -88,7 +140,7 @@
 
   const VIEW_META = {
     dashboard: ["Dashboard", "Overview of your retail business"],
-    pos: ["Point of Sale", "Sell products, scan barcodes and collect payments"],
+    pos: ["New sale", "Sell products, scan barcodes and collect payments"],
     sales: [
       "Sales & Returns",
       "Receipts, transaction history and product returns",
@@ -152,6 +204,18 @@
     saleNotes: "",
     reportPeriod: "today",
     deferredPrompt: null,
+    mobilePosStage: "products",
+    audioContext: null,
+    audioUnlocked: false,
+    alertSnapshot: null,
+    pendingAlertTone: false,
+    readiness: {
+      camera: "unknown",
+      notifications:
+        "Notification" in window ? Notification.permission : "unsupported",
+      sound: "pending",
+    },
+    startupStartedAt: performance.now(),
     scanner: null,
     scanCallback: null,
     productView: window.matchMedia("(max-width: 650px)").matches
@@ -195,19 +259,41 @@
     bindGlobalEvents();
     updateConnectionStatus();
     setupInstallability();
+    setStartupStatus("Preparing offline access…");
     await registerServiceWorker();
     try {
+      setStartupStatus("Opening your secure retail data…");
       await DB.open();
       await DB.seed();
+      setStartupStatus("Loading products, sales and alerts…");
       await loadData();
       const route = location.hash.replace(/^#\/?/, "").split("?")[0];
       navigate(VIEW_META[route] ? route : "dashboard", false);
+      await updateReadinessStatuses();
+      hideStartupSplash();
     } catch (error) {
       console.error(error);
       $("#appView").innerHTML =
         `<div class="notice danger">${I("warning")}<div><strong>Could not start the POS database.</strong><br>${esc(error.message)}</div></div>`;
       toast("Startup failed", error.message, "error");
+      hideStartupSplash();
     }
+  }
+
+  function setStartupStatus(message) {
+    const node = $("#startupStatus");
+    if (node) node.textContent = message;
+  }
+
+  function hideStartupSplash() {
+    const splash = $("#startupSplash");
+    if (!splash) return;
+    const wait = Math.max(0, 650 - (performance.now() - state.startupStartedAt));
+    window.setTimeout(() => {
+      splash.classList.add("is-hidden");
+      document.body.classList.remove("is-booting");
+      window.setTimeout(() => splash.remove(), 420);
+    }, wait);
   }
 
   function setupStaticUI() {
@@ -236,7 +322,7 @@
     $("#sidebarClose").innerHTML = I("close");
     $("#modalClose").innerHTML = I("close");
     $("#scannerClose").innerHTML = I("close");
-    $("#installButton").innerHTML = `${I("download")}<span>Install app</span>`;
+    $("#installButton").innerHTML = `${I("download")}<span>Set up & install</span>`;
     $("#newSaleButton").innerHTML = `${I("plus")}<span>New sale</span>`;
     $("#alertsButtonIcon").innerHTML = I("bell");
     $("#mobile-dashboard").innerHTML = `${I("home")}<span>Home</span>`;
@@ -260,6 +346,10 @@
     document.addEventListener("submit", handleSubmit);
     document.addEventListener("input", handleInput);
     document.addEventListener("change", handleChange);
+    document.addEventListener("pointerdown", primeAudioFromGesture, {
+      once: true,
+      passive: true,
+    });
     window.addEventListener("hashchange", () => {
       const view = location.hash.replace(/^#\/?/, "").split("?")[0];
       if (VIEW_META[view] && view !== state.currentView) navigate(view, false);
@@ -404,11 +494,67 @@
   function applyDisplayPreferences() {
     document.documentElement.dataset.density =
       state.business.interfaceDensity === "compact" ? "compact" : "comfortable";
-    const accent = /^#[0-9a-f]{6}$/i.test(state.business.receiptAccent || "")
-      ? state.business.receiptAccent
-      : "#0f766e";
-    document.documentElement.style.setProperty("--business-accent", accent);
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", accent);
+    const primary = validHex(state.business.appPrimaryColor)
+      ? state.business.appPrimaryColor
+      : THEME_PRESETS.emerald.primary;
+    const highlight = validHex(state.business.appHighlightColor)
+      ? state.business.appHighlightColor
+      : THEME_PRESETS.emerald.highlight;
+    const canvas = validHex(state.business.appCanvasColor)
+      ? state.business.appCanvasColor
+      : THEME_PRESETS.emerald.canvas;
+    const root = document.documentElement;
+    root.style.setProperty("--primary", primary);
+    root.style.setProperty("--primary-strong", mixHex(primary, "#000000", 0.24));
+    root.style.setProperty("--primary-soft", mixHex(primary, "#ffffff", 0.9));
+    root.style.setProperty("--accent", highlight);
+    root.style.setProperty("--soft", canvas);
+    root.style.setProperty("--business-accent", primary);
+    root.dataset.textScale = ["standard", "large", "extra-large"].includes(
+      state.business.textScale,
+    )
+      ? state.business.textScale
+      : "standard";
+    root.dataset.highContrast = settingEnabled("highContrast", false)
+      ? "true"
+      : "false";
+    root.dataset.reducedMotion = settingEnabled("reducedMotion", false)
+      ? "true"
+      : "false";
+    root.dataset.largeTouchTargets = settingEnabled("largeTouchTargets", false)
+      ? "true"
+      : "false";
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", primary);
+    try {
+      localStorage.setItem(
+        "mtech-app-theme",
+        JSON.stringify({ primary, highlight, canvas }),
+      );
+    } catch (_) {}
+  }
+
+  function validHex(value) {
+    return /^#[0-9a-f]{6}$/i.test(String(value || ""));
+  }
+
+  function mixHex(base, blend, amount) {
+    const parse = (hex) =>
+      String(hex)
+        .slice(1)
+        .match(/.{2}/g)
+        .map((part) => parseInt(part, 16));
+    const [r1, g1, b1] = parse(base);
+    const [r2, g2, b2] = parse(blend);
+    return `#${[r1, g1, b1]
+      .map((value, index) => {
+        const target = [r2, g2, b2][index];
+        return Math.round(value + (target - value) * amount)
+          .toString(16)
+          .padStart(2, "0");
+      })
+      .join("")}`;
   }
 
   function settingEnabled(key, fallback = true) {
@@ -622,7 +768,8 @@
   }
 
   function renderAlertIndicators() {
-    const count = activeSystemAlerts().length;
+    const alerts = activeSystemAlerts();
+    const count = alerts.length;
     const topCount = $("#alertCount");
     if (topCount) {
       topCount.textContent = String(count);
@@ -637,6 +784,138 @@
       badge.textContent = count > 99 ? "99+" : String(count);
       nav.appendChild(badge);
     }
+    queueAlertSound(alerts);
+  }
+
+  function ensureAudioContext() {
+    if (state.audioContext) return state.audioContext;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    state.audioContext = new AudioContextClass();
+    return state.audioContext;
+  }
+
+  async function primeAudioFromGesture() {
+    if (
+      !settingEnabled("scanSound", true) &&
+      !settingEnabled("checkoutSoundEnabled", true) &&
+      !settingEnabled("alertSoundEnabled", true)
+    )
+      return;
+    try {
+      const context = ensureAudioContext();
+      if (!context) return;
+      if (context.state === "suspended") await context.resume();
+      state.audioUnlocked = context.state === "running";
+      state.readiness.sound = state.audioUnlocked ? "granted" : "prompt";
+      if (state.audioUnlocked && state.pendingAlertTone) {
+        state.pendingAlertTone = false;
+        playConfiguredSound("alert");
+      }
+    } catch (_) {
+      state.readiness.sound = "blocked";
+    }
+  }
+
+  async function previewConfiguredSound(kind) {
+    await primeAudioFromGesture();
+    if (!state.audioUnlocked) {
+      toast(
+        "Sound unavailable",
+        "Use the browser site controls to allow audio, then try again.",
+        "warning",
+      );
+      return;
+    }
+    const form =
+      kind === "alert"
+        ? $('form[data-form="alerts-settings"]')
+        : $('form[data-form="checkout-settings"]');
+    const pattern =
+      kind === "alert"
+        ? form?.elements.alertSound?.value || state.business.alertSound || "gentle"
+        : form?.elements.checkoutSound?.value ||
+          state.business.checkoutSound ||
+          "success";
+    playTonePattern(pattern);
+  }
+
+  function playTonePattern(patternName) {
+    const context = ensureAudioContext();
+    const pattern = SOUND_PATTERNS[patternName] || SOUND_PATTERNS.gentle;
+    if (!context || context.state !== "running") return false;
+    const volume = clamp(num(state.business.soundVolume) || 55, 0, 100) / 100;
+    const startAt = context.currentTime + 0.012;
+    pattern.forEach((tone) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const toneStart = startAt + tone.delay;
+      const toneEnd = toneStart + tone.duration;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(tone.frequency, toneStart);
+      gain.gain.setValueAtTime(0.0001, toneStart);
+      gain.gain.exponentialRampToValueAtTime(
+        Math.max(0.001, volume * 0.12),
+        toneStart + 0.018,
+      );
+      gain.gain.exponentialRampToValueAtTime(0.0001, toneEnd);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(toneStart);
+      oscillator.stop(toneEnd + 0.02);
+    });
+    return true;
+  }
+
+  function playConfiguredSound(kind) {
+    if (kind === "scan") {
+      if (!settingEnabled("scanSound", true)) return false;
+      return playTonePattern("scan");
+    }
+    if (kind === "checkout") {
+      if (!settingEnabled("checkoutSoundEnabled", true)) return false;
+      return playTonePattern(
+        ["success", "bright", "gentle"].includes(state.business.checkoutSound)
+          ? state.business.checkoutSound
+          : "success",
+      );
+    }
+    if (!settingEnabled("alertSoundEnabled", true)) return false;
+    const cooldown = clamp(
+      num(state.business.alertSoundCooldownMinutes) || 30,
+      1,
+      1440,
+    );
+    let lastPlayed = 0;
+    try {
+      lastPlayed = num(localStorage.getItem("mtech-alert-sound-at"));
+    } catch (_) {}
+    if (Date.now() - lastPlayed < cooldown * 60000) return false;
+    const played = playTonePattern(
+      ["gentle", "urgent", "bright"].includes(state.business.alertSound)
+        ? state.business.alertSound
+        : "gentle",
+    );
+    if (played) {
+      try {
+        localStorage.setItem("mtech-alert-sound-at", String(Date.now()));
+      } catch (_) {}
+    }
+    return played;
+  }
+
+  function queueAlertSound(alerts) {
+    const ids = new Set(alerts.map((alert) => alert.id));
+    if (state.alertSnapshot === null) {
+      state.alertSnapshot = ids;
+      state.pendingAlertTone = alerts.length > 0;
+      return;
+    }
+    const hasNew = [...ids].some((id) => !state.alertSnapshot.has(id));
+    state.alertSnapshot = ids;
+    if (!hasNew) return;
+    if (state.audioUnlocked) playConfiguredSound("alert");
+    else state.pendingAlertTone = true;
   }
 
   function haptic(pattern) {
@@ -660,6 +939,7 @@
   function navigate(view, updateHash = true) {
     if (!VIEW_META[view]) return;
     state.currentView = view;
+    document.body.dataset.currentView = view;
     const [title, subtitle] = VIEW_META[view];
     $("#pageTitle").textContent = title;
     $("#pageSubtitle").textContent = subtitle;
@@ -749,7 +1029,8 @@
       : "";
   }
   function productImageMarkup(product, className = "product-thumb") {
-    const image = safeImageData(product?.imageData);
+    const image =
+      safeImageData(product?.imageData) || DEFAULT_PRODUCT_IMAGES[product?.id] || "";
     if (image)
       return `<img class="${className}" src="${image}" alt="${esc(product?.name || "Product")}" loading="lazy" decoding="async">`;
     return `<span class="${className} product-image-placeholder" aria-hidden="true">${esc(initials(product?.name))}</span>`;
@@ -1232,7 +1513,7 @@
         product.trackStock !== false &&
         num(product.stock) <= 0,
     ).length;
-    $("#appView").innerHTML = `<div class="pos-workspace-bar"><div><span class="eyebrow">Live checkout</span><strong>${filtered.length} products ready to sell</strong></div><div class="pos-workspace-facts"><span>${I("register")}${openSession() ? "Register open" : "Register closed"}</span><span>${I("warning")}${trackedOut} out of stock</span><span class="desktop-shortcut">F2 POS · F4 scanner</span></div></div><div class="pos-shell">
+    $("#appView").innerHTML = `${renderMobilePOS(filtered, totals)}<div class="desktop-pos-workspace"><div class="pos-workspace-bar"><div><span class="eyebrow">Live checkout</span><strong>${filtered.length} products ready to sell</strong></div><div class="pos-workspace-facts"><span>${I("register")}${openSession() ? "Register open" : "Register closed"}</span><span>${I("warning")}${trackedOut} out of stock</span><span class="desktop-shortcut">F2 POS · F4 scanner</span></div></div><div class="pos-shell">
       <section class="panel pos-catalog">
         <div class="pos-toolbar"><div class="search-box">${I("search")}<input id="posSearch" type="search" placeholder="Search name, SKU or barcode" value="${esc(state.posQuery)}" autocomplete="off" inputmode="search"></div><button class="button button-secondary scan-main" data-action="scan-pos">${I("scan")}<span>Scan barcode</span></button></div>
         <div class="category-tabs">${renderCategoryTabs()}</div>
@@ -1251,9 +1532,121 @@
         </div>
         <div class="cart-actions"><div class="cart-secondary-actions"><button class="button button-outline" data-action="hold-sale" ${state.cart.length ? "" : "disabled"}>${I("hold")}Hold</button><button class="button button-outline" data-action="resume-sale">${I("play")}Held (${state.heldSales.length})</button></div><button class="button button-primary button-large button-full" data-action="checkout" ${state.cart.length ? "" : "disabled"}><span>Charge ${formatMoney(totals.total)}</span>${I("arrowRight")}</button></div>
       </aside>
-    </div>`;
+    </div></div>`;
     const search = $("#posSearch");
-    if (search) search.focus({ preventScroll: true });
+    if (search && !window.matchMedia("(max-width: 900px)").matches)
+      search.focus({ preventScroll: true });
+  }
+
+  function mobileReadinessStatus() {
+    const accessReady = settingEnabled("accessibilityConfigured", false);
+    const items = [
+      {
+        key: "camera",
+        label: "Camera",
+        icon: "camera",
+        ready: state.readiness.camera === "granted",
+        status:
+          state.readiness.camera === "denied"
+            ? "Blocked"
+            : state.readiness.camera === "granted"
+              ? "Ready"
+              : "Review",
+      },
+      {
+        key: "notifications",
+        label: "Notifications",
+        icon: "bell",
+        ready: state.readiness.notifications === "granted",
+        status:
+          state.readiness.notifications === "denied"
+            ? "Blocked"
+            : state.readiness.notifications === "unsupported"
+              ? "Optional"
+              : state.readiness.notifications === "granted"
+                ? "Ready"
+                : "Review",
+      },
+      {
+        key: "sound",
+        label: "Sound",
+        icon: "activity",
+        ready: state.audioUnlocked || state.readiness.sound === "granted",
+        status:
+          state.audioUnlocked || state.readiness.sound === "granted"
+            ? "Ready"
+            : "Enable",
+      },
+      {
+        key: "accessibility",
+        label: "Accessibility",
+        icon: "users",
+        ready: accessReady,
+        status: accessReady ? "Set" : "Choose",
+      },
+    ];
+    return { items, ready: items.filter((item) => item.ready).length };
+  }
+
+  function renderMobilePOS(products, totals) {
+    const readiness = mobileReadinessStatus();
+    const quantity = state.cart.reduce(
+      (sum, item) => sum + num(item.quantity),
+      0,
+    );
+    const cartOpen = state.mobilePosStage === "cart";
+    return `<section class="mobile-split-pos ${cartOpen ? "cart-open" : "products-open"}">
+      <button class="mobile-readiness-card" data-action="install-app" aria-label="Review mobile setup and installation">
+        <span class="readiness-check">${I(readiness.ready === 4 ? "check" : "settings")}</span>
+        <span class="readiness-copy"><strong>${readiness.ready === 4 ? "Mobile setup complete" : "Finish mobile setup"}</strong><small>${readiness.ready} of 4 ready</small></span>
+        <span class="readiness-items">${readiness.items
+          .map(
+            (item) =>
+              `<span class="readiness-item ${item.ready ? "ready" : "pending"}" title="${esc(item.label)}: ${esc(item.status)}">${I(item.icon)}<small>${esc(item.label)}</small><i aria-hidden="true">${item.ready ? I("check") : ""}</i></span>`,
+          )
+          .join("")}</span>
+        <span class="readiness-review">Review ${I("arrowRight")}</span>
+      </button>
+
+      <div class="mobile-stage-switch" role="tablist" aria-label="Sale stage">
+        <button role="tab" aria-selected="${!cartOpen}" class="${!cartOpen ? "active" : ""}" data-action="mobile-pos-stage" data-stage="products">${I("grid")}<span>Products</span></button>
+        <button role="tab" aria-selected="${cartOpen}" class="${cartOpen ? "active" : ""}" data-action="mobile-pos-stage" data-stage="cart">${I("cart")}<span>Cart</span><strong>${quantity}</strong></button>
+      </div>
+
+      <div class="mobile-products-stage">
+        <div class="mobile-pos-search"><div class="search-box">${I("search")}<input id="mobilePosSearch" type="search" placeholder="Search name, SKU or barcode" value="${esc(state.posQuery)}" autocomplete="off" inputmode="search"></div><button data-action="scan-pos" aria-label="Scan product barcode">${I("scan")}</button></div>
+        <div class="category-tabs mobile-category-tabs">${renderCategoryTabs()}</div>
+        <div class="mobile-product-list">${products.length ? products.map(mobileProductRow).join("") : emptyState("No matching products", "Try another search or add a new product.", "search")}</div>
+      </div>
+
+      ${quantity ? `<button class="mobile-cart-peek" data-action="mobile-pos-stage" data-stage="cart"><span>${I("cart")}<strong>${quantity}</strong></span><span><small>Current total</small><strong>${formatMoney(totals.total)}</strong></span><span>Review cart ${I("arrowRight")}</span></button>` : ""}
+
+      <aside class="mobile-cart-sheet ${cartOpen ? "open" : ""}" aria-hidden="${!cartOpen}" ${cartOpen ? "" : "inert"}>
+        <button class="mobile-sheet-handle" data-action="mobile-pos-stage" data-stage="products" aria-label="Return to products"><span></span></button>
+        <div class="mobile-cart-head"><div><strong>Your cart</strong><small>${quantity} item${quantity === 1 ? "" : "s"}</small></div><button class="text-button danger-text" data-action="clear-cart" ${state.cart.length ? "" : "disabled"}>Clear</button></div>
+        <div class="mobile-cart-customer"><label for="mobilePosCustomer">Customer</label><select id="mobilePosCustomer" class="select-control"><option value="">Walk-in customer</option>${state.customers.map((customer) => `<option value="${customer.id}" ${state.selectedCustomerId === customer.id ? "selected" : ""}>${esc(customer.name)}</option>`).join("")}</select></div>
+        <div class="mobile-cart-lines">${state.cart.length ? state.cart.map(mobileCartLine).join("") : emptyState("Cart is empty", "Return to Products and add an item to begin.", "cart")}</div>
+        <div class="mobile-cart-total"><span>Subtotal</span><strong>${formatMoney(totals.total)}</strong></div>
+        <div class="mobile-charge-row"><button class="mobile-sound-status" data-action="preview-checkout-sound" type="button">${I("activity")}<span><strong>Checkout chime</strong><small>${settingEnabled("checkoutSoundEnabled", true) ? "Enabled" : "Muted"}</small></span>${I("settings")}</button><button class="button button-primary" data-action="checkout" ${state.cart.length ? "" : "disabled"}>Charge ${formatMoney(totals.total)} ${I("arrowRight")}</button></div>
+        <div class="mobile-offline-note">${I("lock")}<span>Sale will sync safely when you are back online</span></div>
+      </aside>
+    </section>`;
+  }
+
+  function mobileProductRow(product) {
+    const out = product.trackStock !== false && num(product.stock) <= 0;
+    const blocked = out && !allowNegativeStock();
+    const low =
+      product.trackStock !== false &&
+      num(product.stock) <= num(product.reorderLevel);
+    return `<article class="mobile-product-row ${out ? "out" : ""}">${productImageMarkup(product, "mobile-product-image")}<button class="mobile-product-copy" data-action="add-cart" data-id="${product.id}" ${blocked ? "disabled" : ""}><strong>${esc(product.name)}</strong><span>${esc(product.sku || product.barcode || categoryName(product.categoryId))}</span><small class="${low ? "low" : ""}">${product.trackStock === false ? "Service" : `Stock: ${num(product.stock)} ${esc(product.unit)}`}</small></button><strong class="mobile-product-price">${formatMoney(product.sellingPrice)}</strong><button class="mobile-add-product" data-action="add-cart" data-id="${product.id}" ${blocked ? "disabled" : ""} aria-label="Add ${esc(product.name)}">${I("plus")}</button></article>`;
+  }
+
+  function mobileCartLine(item) {
+    const product =
+      state.products.find((candidate) => candidate.id === item.productId) || item;
+    const line = cartLineTotals(item);
+    return `<div class="mobile-cart-line">${productImageMarkup(product, "mobile-cart-image")}<div><strong>${esc(item.name)}</strong><small>${formatMoney(item.unitPrice)} each</small></div><div class="qty-control"><button data-action="cart-qty" data-id="${item.productId}" data-change="-1" aria-label="Reduce ${esc(item.name)}">${I("minus")}</button><span>${num(item.quantity)}</span><button data-action="cart-qty" data-id="${item.productId}" data-change="1" aria-label="Increase ${esc(item.name)}">${I("plus")}</button></div><strong>${formatMoney(line.total)}</strong><button class="mobile-remove-line" data-action="remove-cart" data-id="${item.productId}" aria-label="Remove ${esc(item.name)}">${I("trash")}</button></div>`;
   }
 
   function renderCategoryTabs() {
@@ -2213,21 +2606,23 @@
 
   function settingsSectionContent(installed) {
     const section = state.settingsSection;
+    if (section === "appearance")
+      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("image")}</span><div><span class="eyebrow">Brand and accessibility</span><h2>App colours and display</h2><p>Personalize the complete POS interface while keeping controls readable and consistent.</p></div></div><form class="settings-form" data-form="appearance-settings"><div class="theme-preset-grid">${Object.entries(THEME_PRESETS).map(([id, preset]) => `<button type="button" class="theme-preset ${state.business.appThemePreset === id ? "active" : ""}" data-action="theme-preset" data-id="${id}" style="--preset-primary:${preset.primary};--preset-highlight:${preset.highlight};--preset-canvas:${preset.canvas}"><span><i></i><i></i><i></i></span><strong>${esc(id[0].toUpperCase() + id.slice(1))}</strong></button>`).join("")}<button type="button" class="theme-preset ${state.business.appThemePreset === "custom" ? "active" : ""}" data-action="theme-preset" data-id="custom"><span class="custom-theme-mark">${I("settings")}</span><strong>Custom</strong></button></div><input type="hidden" name="appThemePreset" value="${esc(state.business.appThemePreset || "emerald")}"><div class="appearance-layout"><div><div class="settings-field-grid"><div class="field colour-field"><label>Primary app colour</label><input type="color" name="appPrimaryColor" value="${esc(state.business.appPrimaryColor || THEME_PRESETS.emerald.primary)}"><small>Buttons, active navigation and sale controls.</small></div><div class="field colour-field"><label>Highlight colour</label><input type="color" name="appHighlightColor" value="${esc(state.business.appHighlightColor || THEME_PRESETS.emerald.highlight)}"><small>Warnings, emphasis and supporting accents.</small></div><div class="field colour-field"><label>Background colour</label><input type="color" name="appCanvasColor" value="${esc(state.business.appCanvasColor || THEME_PRESETS.emerald.canvas)}"><small>Main workspace canvas and splash backdrop.</small></div><div class="field"><label>Text size</label><select name="textScale"><option value="standard" ${state.business.textScale === "standard" ? "selected" : ""}>Standard</option><option value="large" ${state.business.textScale === "large" ? "selected" : ""}>Large</option><option value="extra-large" ${state.business.textScale === "extra-large" ? "selected" : ""}>Extra large</option></select></div></div><div class="settings-toggle-list">${settingsToggle("highContrast", "High-contrast controls", "Strengthens borders and text contrast throughout the app.", settingEnabled("highContrast", false))}${settingsToggle("reducedMotion", "Reduce motion", "Disables non-essential transitions and splash animation.", settingEnabled("reducedMotion", false))}${settingsToggle("largeTouchTargets", "Larger touch targets", "Uses roomier controls for easier one-handed operation.", settingEnabled("largeTouchTargets", false))}</div></div><aside class="theme-live-preview" id="themeLivePreview"><span>Live preview</span><div><small>New sale</small><strong>${esc(state.business.businessName || "MTECH Retail Shop")}</strong><button type="button">Charge ${formatMoney(14500)}</button></div><p>Selected colours also update the install splash and phone browser theme.</p></aside></div><div class="settings-save-bar"><span>Changes preview instantly and remain on this device.</span><button class="button button-primary" type="submit">${I("save")}Save appearance</button></div></form></article>`;
     if (section === "checkout")
-      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("cart")}</span><div><span class="eyebrow">Sales workflow</span><h2>Checkout preferences</h2><p>Choose how the sales screen behaves during daily service.</p></div></div><form class="settings-form" data-form="checkout-settings"><div class="settings-field-grid"><div class="field"><label>Default payment</label><select name="defaultPaymentMethod"><option value="cash" ${state.business.defaultPaymentMethod === "cash" ? "selected" : ""}>Cash</option><option value="mobile-money" ${state.business.defaultPaymentMethod === "mobile-money" ? "selected" : ""}>Mobile money</option><option value="card" ${state.business.defaultPaymentMethod === "card" ? "selected" : ""}>Card</option><option value="none" ${state.business.defaultPaymentMethod === "none" ? "selected" : ""}>Do not prefill</option></select><small>Prefills the full amount while still allowing split payment.</small></div><div class="field"><label>After completing a sale</label><select name="saleCompletionBehavior"><option value="receipt" ${state.business.saleCompletionBehavior !== "continue" ? "selected" : ""}>Open receipt actions</option><option value="continue" ${state.business.saleCompletionBehavior === "continue" ? "selected" : ""}>Return to a fresh cart</option></select><small>Receipts remain available from Sales either way.</small></div><div class="field"><label>Default product catalogue layout</label><select name="productView"><option value="grid" ${state.business.productView === "grid" ? "selected" : ""}>Image grid</option><option value="table" ${state.business.productView !== "grid" ? "selected" : ""}>Detailed table</option></select></div><div class="field"><label>Interface spacing</label><select name="interfaceDensity"><option value="comfortable" ${state.business.interfaceDensity !== "compact" ? "selected" : ""}>Comfortable</option><option value="compact" ${state.business.interfaceDensity === "compact" ? "selected" : ""}>Compact</option></select></div></div><div class="settings-toggle-list">${settingsToggle("requireOpenRegister", "Require an open register for cash sales", "Blocks cash checkout until a register shift has been opened.", settingEnabled("requireOpenRegister", false))}${settingsToggle("confirmClearCart", "Confirm before clearing a cart", "Prevents accidental removal of every sale line.", settingEnabled("confirmClearCart", true))}${settingsToggle("hapticFeedback", "Vibration feedback", "Provides a short device vibration when products are added or scanned.", settingEnabled("hapticFeedback", true))}${settingsToggle("scanSound", "Barcode scan sound", "Plays a short confirmation tone after a successful scan.", settingEnabled("scanSound", true))}${settingsToggle("showDashboardHero", "Show dashboard welcome panel", "Keeps the monthly snapshot and quick-start actions on the dashboard.", settingEnabled("showDashboardHero", true))}</div><div class="settings-save-bar"><span>Changes apply on this device immediately.</span><button class="button button-primary" type="submit">${I("save")}Save checkout settings</button></div></form></article>`;
+      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("cart")}</span><div><span class="eyebrow">Sales workflow</span><h2>Checkout preferences</h2><p>Choose how the sales screen behaves during daily service.</p></div></div><form class="settings-form" data-form="checkout-settings"><div class="settings-field-grid"><div class="field"><label>Default payment</label><select name="defaultPaymentMethod"><option value="cash" ${state.business.defaultPaymentMethod === "cash" ? "selected" : ""}>Cash</option><option value="mobile-money" ${state.business.defaultPaymentMethod === "mobile-money" ? "selected" : ""}>Mobile money</option><option value="card" ${state.business.defaultPaymentMethod === "card" ? "selected" : ""}>Card</option><option value="none" ${state.business.defaultPaymentMethod === "none" ? "selected" : ""}>Do not prefill</option></select><small>Prefills the full amount while still allowing split payment.</small></div><div class="field"><label>After completing a sale</label><select name="saleCompletionBehavior"><option value="receipt" ${state.business.saleCompletionBehavior !== "continue" ? "selected" : ""}>Open receipt actions</option><option value="continue" ${state.business.saleCompletionBehavior === "continue" ? "selected" : ""}>Return to a fresh cart</option></select><small>Receipts remain available from Sales either way.</small></div><div class="field"><label>Default product catalogue layout</label><select name="productView"><option value="grid" ${state.business.productView === "grid" ? "selected" : ""}>Image grid</option><option value="table" ${state.business.productView !== "grid" ? "selected" : ""}>Detailed table</option></select></div><div class="field"><label>Interface spacing</label><select name="interfaceDensity"><option value="comfortable" ${state.business.interfaceDensity !== "compact" ? "selected" : ""}>Comfortable</option><option value="compact" ${state.business.interfaceDensity === "compact" ? "selected" : ""}>Compact</option></select></div><div class="field"><label>Checkout sound</label><div class="field-action-row"><select name="checkoutSound"><option value="success" ${state.business.checkoutSound === "success" ? "selected" : ""}>Success chime</option><option value="bright" ${state.business.checkoutSound === "bright" ? "selected" : ""}>Bright confirmation</option><option value="gentle" ${state.business.checkoutSound === "gentle" ? "selected" : ""}>Gentle tone</option></select><button class="button button-outline" type="button" data-action="preview-checkout-sound">${I("play")}Preview</button></div></div><div class="field"><label>Sound volume · ${clamp(num(state.business.soundVolume) || 55, 0, 100)}%</label><input type="range" name="soundVolume" min="0" max="100" step="5" value="${clamp(num(state.business.soundVolume) || 55, 0, 100)}"></div></div><div class="settings-toggle-list">${settingsToggle("requireOpenRegister", "Require an open register for cash sales", "Blocks cash checkout until a register shift has been opened.", settingEnabled("requireOpenRegister", false))}${settingsToggle("confirmClearCart", "Confirm before clearing a cart", "Prevents accidental removal of every sale line.", settingEnabled("confirmClearCart", true))}${settingsToggle("hapticFeedback", "Vibration feedback", "Provides a short device vibration when products are added or scanned.", settingEnabled("hapticFeedback", true))}${settingsToggle("scanSound", "Barcode scan sound", "Plays a short confirmation tone after a successful scan.", settingEnabled("scanSound", true))}${settingsToggle("checkoutSoundEnabled", "Checkout completion sound", "Plays the selected confirmation after a sale is safely saved.", settingEnabled("checkoutSoundEnabled", true))}${settingsToggle("showDashboardHero", "Show dashboard welcome panel", "Keeps the monthly snapshot and quick-start actions on the dashboard.", settingEnabled("showDashboardHero", true))}</div><div class="settings-save-bar"><span>Mobile browsers enable sound after the first screen tap.</span><button class="button button-primary" type="submit">${I("save")}Save checkout settings</button></div></form></article>`;
     if (section === "receipts")
       return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("receipt")}</span><div><span class="eyebrow">Customer documents</span><h2>Receipt design</h2><p>Control branding and the information customers receive.</p></div></div><div class="settings-split"><form class="settings-form" data-form="receipt-settings"><div class="settings-field-grid"><div class="field"><label>Paper width</label><select name="receiptPaper"><option value="80mm" ${state.business.receiptPaper !== "58mm" ? "selected" : ""}>80mm thermal</option><option value="58mm" ${state.business.receiptPaper === "58mm" ? "selected" : ""}>58mm thermal</option></select></div><div class="field"><label>Brand colour</label><input type="color" name="receiptAccent" value="${esc(state.business.receiptAccent || "#0f766e")}"></div><div class="field full"><label>Receipt footer</label><textarea name="receiptFooter" placeholder="Thank customers or add a policy note">${esc(state.business.receiptFooter || "")}</textarea></div></div><div class="settings-toggle-list">${settingsToggle("showReceiptCashier", "Show cashier name", "Adds the operator responsible for the transaction.", settingEnabled("showReceiptCashier", true))}${settingsToggle("showReceiptSku", "Show product SKU", "Prints the SKU or barcode beneath each receipt line.", settingEnabled("showReceiptSku", true))}${settingsToggle("showReceiptTax", "Show tax breakdown", "Displays the tax line even when the current tax amount is zero.", settingEnabled("showReceiptTax", true))}</div><div class="settings-save-bar"><span>Applies to print, PNG download and sharing.</span><button class="button button-primary" type="submit">${I("save")}Save receipt settings</button></div></form><aside class="settings-receipt-wrap"><span class="eyebrow">Live preview</span><div id="settingsReceiptPreview" class="receipt settings-receipt-preview ${state.business.receiptPaper === "58mm" ? "receipt-58mm" : ""}" style="--receipt-accent:${esc(state.business.receiptAccent || "#0f766e")}"><div class="receipt-brand-bar"></div><div class="receipt-center"><h3>${esc(state.business.businessName || "Retail Shop")}</h3><p>${esc(state.business.address || "Business address")}</p></div><div class="receipt-rule"></div><div class="receipt-row"><span>Receipt</span><strong>SALE-000123</strong></div><div class="receipt-row" data-receipt-preview="cashier" ${settingEnabled("showReceiptCashier", true) ? "" : "hidden"}><span>Cashier</span><span>Owner</span></div><div class="receipt-rule"></div><div class="receipt-item-name">Sample product</div><div class="receipt-code" data-receipt-preview="sku" ${settingEnabled("showReceiptSku", true) ? "" : "hidden"}>SKU-001</div><div class="receipt-row receipt-meta"><span>1 × ${formatMoney(2500)}</span><span>${formatMoney(2500)}</span></div><div class="receipt-row" data-receipt-preview="tax" ${settingEnabled("showReceiptTax", true) ? "" : "hidden"}><span>Tax</span><span>${formatMoney(0)}</span></div><div class="receipt-row total"><span>TOTAL</span><span>${formatMoney(2500)}</span></div><div class="receipt-rule"></div><div class="receipt-center"><p id="settingsReceiptFooter">${esc(state.business.receiptFooter || "Thank you.")}</p></div></div></aside></div></article>`;
     if (section === "inventory")
       return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("boxes")}</span><div><span class="eyebrow">Stock policy</span><h2>Inventory controls</h2><p>Set warning windows and decide how strict checkout should be.</p></div></div><form class="settings-form" data-form="inventory-settings"><div class="inventory-settings-summary"><div><span>${I("warning")} Products below reorder level</span><strong>${state.products.filter((product) => product.active !== false && product.trackStock !== false && num(product.stock) <= num(product.reorderLevel)).length}</strong></div><div><span>${I("calendar")} Products with expiry dates</span><strong>${state.products.filter((product) => product.expiryDate).length}</strong></div><div><span>${I("boxes")} Tracked products</span><strong>${state.products.filter((product) => product.trackStock !== false).length}</strong></div></div><div class="settings-field-grid"><div class="field"><label>Expiry warning window (days)</label><input type="number" name="expiryWarningDays" min="1" max="365" step="1" value="${clamp(num(state.business.expiryWarningDays) || 30, 1, 365)}"><small>Products inside this window appear as expiring soon.</small></div></div><div class="settings-toggle-list">${settingsToggle("lowStockEnabled", "Dashboard low-stock alerts", "Shows products at or below their reorder level on the dashboard.", settingEnabled("lowStockEnabled", true))}${settingsToggle("allowNegativeStock", "Allow sales below zero stock", "Lets checkout continue for oversold items and records a negative balance. Use with care.", settingEnabled("allowNegativeStock", false))}</div><div class="notice warning settings-risk-note">${I("warning")}<div><strong>Negative stock is an operational exception.</strong><br>When enabled, the sale and stock movement remain in the audit history so the balance can be corrected later.</div></div><div class="settings-save-bar"><span>Product-specific reorder levels remain in each product record.</span><button class="button button-primary" type="submit">${I("save")}Save inventory settings</button></div></form></article>`;
     if (section === "alerts")
-      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("bell")}</span><div><span class="eyebrow">Operational attention</span><h2>Alerts and expense controls</h2><p>Choose which risks enter the alerts centre and protect high-value operating costs.</p></div></div><form class="settings-form" data-form="alerts-settings"><div class="inventory-settings-summary"><div><span>${I("bell")} Open alerts</span><strong>${activeSystemAlerts().length}</strong></div><div><span>${I("lock")} Pending approvals</span><strong>${state.approvalRequests.filter((request) => request.status === "pending").length}</strong></div><div><span>${I("wallet")} Unpaid expenses</span><strong>${state.expenses.filter((expense) => isRecognizedExpense(expense) && expense.paymentStatus !== "paid").length}</strong></div></div><div class="settings-field-grid"><div class="field"><label>Default alert snooze (hours)</label><input type="number" name="alertDefaultSnoozeHours" min="1" max="168" step="1" value="${clamp(num(state.business.alertDefaultSnoozeHours) || 24, 1, 168)}"><small>Snoozed alerts return automatically if the issue remains.</small></div><div class="field"><label>Expense approval threshold</label><input type="number" name="expenseApprovalThreshold" min="0" step="1000" value="${Math.max(0, num(state.business.expenseApprovalThreshold))}"><small>Expenses at or above this value enter the manager queue.</small></div></div><div class="settings-toggle-list">${settingsToggle("alertExpiryEnabled", "Product expiry alerts", "Warns when a dated product expires or enters the configured warning window.", settingEnabled("alertExpiryEnabled", true))}${settingsToggle("alertApprovalEnabled", "Approval queue alerts", "Surfaces pending returns, voids and controlled expenses.", settingEnabled("alertApprovalEnabled", true))}${settingsToggle("alertPurchaseEnabled", "Overdue purchase-order alerts", "Flags orders that pass their expected delivery date.", settingEnabled("alertPurchaseEnabled", true))}${settingsToggle("alertCreditEnabled", "Customer credit-limit alerts", "Flags customer balances above their configured credit limit.", settingEnabled("alertCreditEnabled", true))}${settingsToggle("alertExpenseDueEnabled", "Due and overdue expense alerts", "Highlights unpaid operating costs when their due date arrives.", settingEnabled("alertExpenseDueEnabled", true))}${settingsToggle("alertBackupEnabled", "Backup health alerts", "Uses the backup reminder interval to protect local records.", settingEnabled("alertBackupEnabled", true))}${settingsToggle("expenseApprovalEnabled", "Require approval for high-value expenses", "Prevents qualifying expenses from affecting cash or profit until a manager approves them.", settingEnabled("expenseApprovalEnabled", false))}${settingsToggle("requireExpenseReceipt", "Require receipt evidence for expenses", "Blocks expense saving until an image of the receipt, bill or invoice is attached.", settingEnabled("requireExpenseReceipt", false))}</div><div class="notice info settings-risk-note">${I("info")}<div>Acknowledging or snoozing an alert never changes business data. Resolve the underlying stock, payment, approval or backup condition to clear it.</div></div><div class="settings-save-bar"><span>Changes rebuild the alerts centre immediately.</span><button class="button button-primary" type="submit">${I("save")}Save alerts and expense controls</button></div></form></article>`;
+      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("bell")}</span><div><span class="eyebrow">Operational attention</span><h2>Alerts and expense controls</h2><p>Choose which risks enter the alerts centre and how the device gets your attention.</p></div></div><form class="settings-form" data-form="alerts-settings"><div class="inventory-settings-summary"><div><span>${I("bell")} Open alerts</span><strong>${activeSystemAlerts().length}</strong></div><div><span>${I("lock")} Pending approvals</span><strong>${state.approvalRequests.filter((request) => request.status === "pending").length}</strong></div><div><span>${I("wallet")} Unpaid expenses</span><strong>${state.expenses.filter((expense) => isRecognizedExpense(expense) && expense.paymentStatus !== "paid").length}</strong></div></div><div class="settings-field-grid"><div class="field"><label>Default alert snooze (hours)</label><input type="number" name="alertDefaultSnoozeHours" min="1" max="168" step="1" value="${clamp(num(state.business.alertDefaultSnoozeHours) || 24, 1, 168)}"><small>Snoozed alerts return automatically if the issue remains.</small></div><div class="field"><label>Expense approval threshold</label><input type="number" name="expenseApprovalThreshold" min="0" step="1000" value="${Math.max(0, num(state.business.expenseApprovalThreshold))}"><small>Expenses at or above this value enter the manager queue.</small></div><div class="field"><label>Alert sound</label><div class="field-action-row"><select name="alertSound"><option value="gentle" ${state.business.alertSound === "gentle" ? "selected" : ""}>Gentle notice</option><option value="bright" ${state.business.alertSound === "bright" ? "selected" : ""}>Bright notice</option><option value="urgent" ${state.business.alertSound === "urgent" ? "selected" : ""}>Urgent warning</option></select><button class="button button-outline" type="button" data-action="preview-alert-sound">${I("play")}Preview</button></div></div><div class="field"><label>Sound cooldown (minutes)</label><input type="number" name="alertSoundCooldownMinutes" min="1" max="1440" step="1" value="${clamp(num(state.business.alertSoundCooldownMinutes) || 30, 1, 1440)}"><small>Prevents repeated tones for the same active risk.</small></div></div><div class="settings-toggle-list">${settingsToggle("alertSoundEnabled", "Operational alert sound", "Plays the selected tone only for newly detected alerts and respects the cooldown.", settingEnabled("alertSoundEnabled", true))}${settingsToggle("alertExpiryEnabled", "Product expiry alerts", "Warns when a dated product expires or enters the configured warning window.", settingEnabled("alertExpiryEnabled", true))}${settingsToggle("alertApprovalEnabled", "Approval queue alerts", "Surfaces pending returns, voids and controlled expenses.", settingEnabled("alertApprovalEnabled", true))}${settingsToggle("alertPurchaseEnabled", "Overdue purchase-order alerts", "Flags orders that pass their expected delivery date.", settingEnabled("alertPurchaseEnabled", true))}${settingsToggle("alertCreditEnabled", "Customer credit-limit alerts", "Flags customer balances above their configured credit limit.", settingEnabled("alertCreditEnabled", true))}${settingsToggle("alertExpenseDueEnabled", "Due and overdue expense alerts", "Highlights unpaid operating costs when their due date arrives.", settingEnabled("alertExpenseDueEnabled", true))}${settingsToggle("alertBackupEnabled", "Backup health alerts", "Uses the backup reminder interval to protect local records.", settingEnabled("alertBackupEnabled", true))}${settingsToggle("expenseApprovalEnabled", "Require approval for high-value expenses", "Prevents qualifying expenses from affecting cash or profit until a manager approves them.", settingEnabled("expenseApprovalEnabled", false))}${settingsToggle("requireExpenseReceipt", "Require receipt evidence for expenses", "Blocks expense saving until an image of the receipt, bill or invoice is attached.", settingEnabled("requireExpenseReceipt", false))}</div><div class="notice info settings-risk-note">${I("info")}<div>Acknowledging or snoozing an alert never changes business data. Resolve the underlying stock, payment, approval or backup condition to clear it.</div></div><div class="settings-save-bar"><span>Changes rebuild the alerts centre immediately.</span><button class="button button-primary" type="submit">${I("save")}Save alerts and expense controls</button></div></form></article>`;
     if (section === "security")
       return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("lock")}</span><div><span class="eyebrow">Approval policy</span><h2>Returns and void controls</h2><p>Protect reversals with a manager identity, PIN and required evidence.</p></div></div><form class="settings-form" data-form="security-settings"><div class="security-status ${state.business.approvalPinHash ? "ready" : "attention"}"><span>${I(state.business.approvalPinHash ? "check" : "warning")}</span><div><strong>${state.business.approvalPinHash ? "Approval control is active" : "Approval PIN is not configured"}</strong><small>${state.business.approvalPinHash ? "Managers can approve or reject queued return and void requests." : "Requests can be submitted, but they cannot be reviewed until a PIN is created."}</small></div></div><div class="settings-field-grid"><div class="field"><label>Manager / approver name</label><input name="managerName" required value="${esc(state.business.managerName || "Manager")}"></div><div class="field"><label>${state.business.approvalPinHash ? "Replace approval PIN" : "Create approval PIN"}</label><input type="password" name="approvalPin" inputmode="numeric" minlength="4" maxlength="8" pattern="[0-9]{4,8}" autocomplete="new-password" placeholder="${state.business.approvalPinHash ? "Leave blank to keep current PIN" : "4–8 digits"}"><small>The PIN is stored as a one-way hash in this browser.</small></div></div><div class="settings-toggle-list">${settingsToggle("requireReturnNotes", "Require notes for returns", "Makes the requester explain why selected items should be refunded.", settingEnabled("requireReturnNotes", true))}${settingsToggle("requireVoidNotes", "Require notes for full sale voids", "Requires a written explanation before a full reversal enters the queue.", settingEnabled("requireVoidNotes", true))}</div><div class="approval-policy-flow"><div><span>1</span><strong>Request</strong><small>Operator selects items and reason</small></div><div><span>2</span><strong>Review</strong><small>Manager enters PIN and decision</small></div><div><span>3</span><strong>Apply</strong><small>Stock and cash change atomically</small></div></div><div class="settings-save-bar"><span>${state.approvalRequests.filter((request) => request.status === "pending").length} request(s) currently await review.</span><button class="button button-primary" type="submit">${I("save")}Save security settings</button></div></form></article>`;
     if (section === "data") {
       const lastBackup = state.business.lastBackupAt
         ? formatDateTime(state.business.lastBackupAt)
         : "Never on this device";
-      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("database")}</span><div><span class="eyebrow">Device and recovery</span><h2>Data, backup and installation</h2><p>Protect local records and move them between devices safely.</p></div></div><form class="settings-form settings-data-form" data-form="data-settings"><div class="device-status-grid"><div><span>Application</span><strong>Version 4.1.0</strong><small>IndexedDB v6</small></div><div><span>Offline use</span><strong>Ready</strong><small>${installed ? "Installed on this device" : "Browser installation available"}</small></div><div><span>Scanner</span><strong>${"BarcodeDetector" in window ? "Native" : window.ZXingBrowser ? "Compatible" : "Manual"}</strong><small>Camera, image and typed entry</small></div><div><span>Last backup</span><strong>${esc(lastBackup)}</strong><small>Download backups regularly</small></div></div><div class="settings-field-grid"><div class="field"><label>Backup reminder interval (days)</label><input type="number" name="backupReminderDays" min="1" max="90" step="1" value="${clamp(num(state.business.backupReminderDays) || 7, 1, 90)}"><small>Used to show backup health in the alerts centre and this control centre.</small></div></div><div class="settings-actions-grid data-action-grid"><button type="button" class="settings-action featured" data-action="export-backup">${I("download")}<div><strong>Export full backup</strong><span>Products, images, sales, alerts, expenses, approvals, purchases and settings.</span></div></button><button type="button" class="settings-action" data-action="import-backup">${I("upload")}<div><strong>Import backup</strong><span>Replace this device’s database from a valid JSON backup.</span></div></button><button type="button" class="settings-action" data-action="export-products">${I("file")}<div><strong>Product CSV</strong><span>Export the current catalogue for spreadsheets.</span></div></button><button type="button" class="settings-action" data-action="export-sales">${I("receipt")}<div><strong>Sales CSV</strong><span>Export receipt totals and transaction statuses.</span></div></button><button type="button" class="settings-action" data-action="install-app">${I("download")}<div><strong>${installed ? "App installed" : "Install application"}</strong><span>Keep the POS on this device for quick offline access.</span></div></button></div><div class="settings-save-bar"><span>Records live in this browser profile, not a cloud account.</span><button class="button button-primary" type="submit">${I("save")}Save reminder</button></div></form><div class="danger-zone-inline"><div><strong>Reset this device</strong><span>Permanently remove all local POS records and recreate sample data.</span></div><button class="button button-danger" data-action="reset-data">${I("trash")}Delete all data</button></div></article>`;
+      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("database")}</span><div><span class="eyebrow">Device and recovery</span><h2>Data, backup and installation</h2><p>Protect local records and move them between devices safely.</p></div></div><form class="settings-form settings-data-form" data-form="data-settings"><div class="device-status-grid"><div><span>Application</span><strong>Version ${APP_VERSION}</strong><small>IndexedDB v6</small></div><div><span>Offline use</span><strong>Ready</strong><small>${installed ? "Installed on this device" : "Browser installation available"}</small></div><div><span>Scanner</span><strong>${"BarcodeDetector" in window ? "Native" : window.ZXingBrowser ? "Compatible" : "Manual"}</strong><small>Camera, image and typed entry</small></div><div><span>Last backup</span><strong>${esc(lastBackup)}</strong><small>Download backups regularly</small></div></div><div class="settings-field-grid"><div class="field"><label>Backup reminder interval (days)</label><input type="number" name="backupReminderDays" min="1" max="90" step="1" value="${clamp(num(state.business.backupReminderDays) || 7, 1, 90)}"><small>Used to show backup health in the alerts centre and this control centre.</small></div></div><div class="settings-actions-grid data-action-grid"><button type="button" class="settings-action featured" data-action="export-backup">${I("download")}<div><strong>Export full backup</strong><span>Products, images, sales, alerts, expenses, approvals, purchases and settings.</span></div></button><button type="button" class="settings-action" data-action="import-backup">${I("upload")}<div><strong>Import backup</strong><span>Replace this device’s database from a valid JSON backup.</span></div></button><button type="button" class="settings-action" data-action="export-products">${I("file")}<div><strong>Product CSV</strong><span>Export the current catalogue for spreadsheets.</span></div></button><button type="button" class="settings-action" data-action="export-sales">${I("receipt")}<div><strong>Sales CSV</strong><span>Export receipt totals and transaction statuses.</span></div></button><button type="button" class="settings-action" data-action="install-app">${I("download")}<div><strong>${installed ? "App installed" : "Review setup & install"}</strong><span>Check camera, notifications, sound and accessibility before installation.</span></div></button></div><div class="settings-save-bar"><span>Records live in this browser profile, not a cloud account.</span><button class="button button-primary" type="submit">${I("save")}Save reminder</button></div></form><div class="danger-zone-inline"><div><strong>Reset this device</strong><span>Permanently remove all local POS records and recreate sample data.</span></div><button class="button button-danger" data-action="reset-data">${I("trash")}Delete all data</button></div></article>`;
     }
     return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("store")}</span><div><span class="eyebrow">Business identity</span><h2>Business profile and tax</h2><p>Details used across the app, reports and branded receipts.</p></div></div><form class="settings-form" data-form="business-settings"><div class="business-identity-banner"><div class="business-avatar">${esc(initials(state.business.businessName))}</div><div><strong>${esc(state.business.businessName)}</strong><span>${esc(state.business.address || "Add your business address")}</span></div><span class="badge success">Active profile</span></div><div class="settings-field-grid"><div class="field"><label>Business name</label><input name="businessName" required value="${esc(state.business.businessName || "")}"></div><div class="field"><label>Phone</label><input name="phone" value="${esc(state.business.phone || "")}"></div><div class="field"><label>Email</label><input type="email" name="email" value="${esc(state.business.email || "")}"></div><div class="field"><label>TIN / registration number</label><input name="taxId" value="${esc(state.business.taxId || "")}"></div><div class="field full"><label>Business address</label><input name="address" value="${esc(state.business.address || "")}"></div><div class="field"><label>Currency code</label><input name="currency" maxlength="3" required value="${esc(state.business.currency || "UGX")}"></div><div class="field"><label>Tax rate (%)</label><input type="number" name="taxRate" min="0" max="100" step="0.01" value="${num(state.business.taxRate)}"></div><div class="field"><label>Tax mode</label><select name="taxMode"><option value="exclusive" ${state.business.taxMode !== "inclusive" ? "selected" : ""}>Add tax to price</option><option value="inclusive" ${state.business.taxMode === "inclusive" ? "selected" : ""}>Tax included in price</option></select></div></div><div class="notice info settings-risk-note">${I("info")}<div>Currency and tax changes apply to future sales. Existing receipts keep their recorded totals.</div></div><div class="settings-save-bar"><span>These details appear on professional receipts.</span><button class="button button-primary" type="submit">${I("save")}Save business profile</button></div></form></article>`;
   }
@@ -2249,8 +2644,8 @@
       backupDays !== null &&
       backupDays <= clamp(num(state.business.backupReminderDays) || 7, 1, 90);
     $("#appView").innerHTML = `<div class="page-stack settings-page">
-      <section class="settings-hero"><div><span class="eyebrow">Operations control centre</span><h2>Make the POS work your way.</h2><p>Configure sales behavior, receipt branding, stock policy, alerts, expense approvals and device recovery from one organized workspace.</p></div><div class="settings-health"><div class="${state.business.approvalPinHash ? "ready" : "attention"}">${I("lock")}<span><strong>${state.business.approvalPinHash ? "PIN protected" : "PIN needed"}</strong><small>${pending} pending approval(s)</small></span></div><div class="${backupHealthy ? "ready" : "attention"}">${I("database")}<span><strong>${backupHealthy ? "Backup current" : "Backup due"}</strong><small>${lastBackup ? `${backupDays} day(s) ago` : "Not backed up yet"}</small></span></div><div class="ready">${I("check")}<span><strong>Offline ready</strong><small>Version 4.1.0 · DB v6</small></span></div></div></section>
-      <section class="settings-workspace"><aside class="settings-nav panel"><div class="settings-nav-heading"><strong>Settings</strong><span>Select a category</span></div>${settingsNavButton("business", "store", "Business profile", "Identity, currency and tax")}${settingsNavButton("checkout", "cart", "Checkout", "Payments and sale flow")}${settingsNavButton("receipts", "receipt", "Receipts", "Branding and content")}${settingsNavButton("inventory", "boxes", "Inventory", "Alerts and stock policy")}${settingsNavButton("security", "lock", "Approvals", "Returns and void control")}${settingsNavButton("data", "database", "Data & device", "Backup, exports and install")}</aside><div class="settings-content">${settingsSectionContent(installed)}</div></section>
+      <section class="settings-hero"><div><span class="eyebrow">Operations control centre</span><h2>Make the POS work your way.</h2><p>Configure branding, accessibility, checkout sounds, alerts, stock policy and device recovery from one organized workspace.</p></div><div class="settings-health"><div class="${state.business.approvalPinHash ? "ready" : "attention"}">${I("lock")}<span><strong>${state.business.approvalPinHash ? "PIN protected" : "PIN needed"}</strong><small>${pending} pending approval(s)</small></span></div><div class="${backupHealthy ? "ready" : "attention"}">${I("database")}<span><strong>${backupHealthy ? "Backup current" : "Backup due"}</strong><small>${lastBackup ? `${backupDays} day(s) ago` : "Not backed up yet"}</small></span></div><div class="ready">${I("check")}<span><strong>Offline ready</strong><small>Version ${APP_VERSION} · DB v6</small></span></div></div></section>
+      <section class="settings-workspace"><aside class="settings-nav panel"><div class="settings-nav-heading"><strong>Settings</strong><span>Select a category</span></div>${settingsNavButton("business", "store", "Business profile", "Identity, currency and tax")}${settingsNavButton("appearance", "image", "Appearance", "Colours and accessibility")}${settingsNavButton("checkout", "cart", "Checkout", "Payments and sale flow")}${settingsNavButton("receipts", "receipt", "Receipts", "Branding and content")}${settingsNavButton("inventory", "boxes", "Inventory", "Alerts and stock policy")}${settingsNavButton("security", "lock", "Approvals", "Returns and void control")}${settingsNavButton("data", "database", "Data & device", "Backup, exports and install")}</aside><div class="settings-content">${settingsSectionContent(installed)}</div></section>
       <input type="file" id="backupInput" accept="application/json" hidden>
     </div>`;
     const approvalsSettingsButton = $(`[data-action="settings-section"][data-id="security"]`);
@@ -2265,6 +2660,7 @@
         ),
       );
     $("#backupInput")?.addEventListener("change", importBackupFile);
+    if (state.settingsSection === "appearance") updateAppearancePreview();
   }
 
   async function handleClick(event) {
@@ -2306,6 +2702,10 @@
       "adjust-product": () => openStockAdjustmentModal(id),
       "adjust-stock": () => openStockAdjustmentModal(),
       "scan-pos": () => openBarcodeScanner(handlePOSBarcode),
+      "mobile-pos-stage": () => {
+        state.mobilePosStage = target.dataset.stage === "cart" ? "cart" : "products";
+        renderPOS();
+      },
       "pos-category": () => {
         state.posCategory = id;
         renderPOS();
@@ -2317,6 +2717,8 @@
       "edit-cart-line": () => openCartLineModal(id),
       "order-discount": openOrderDiscountModal,
       checkout: openCheckoutModal,
+      "preview-checkout-sound": () => previewConfiguredSound("checkout"),
+      "preview-alert-sound": () => previewConfiguredSound("alert"),
       "hold-sale": openHoldSaleModal,
       "resume-sale": openHeldSalesModal,
       "new-purchase": openPurchaseModal,
@@ -2381,6 +2783,16 @@
       "export-backup": exportBackup,
       "import-backup": () => $("#backupInput")?.click(),
       "reset-data": confirmResetData,
+      "theme-preset": () => applyThemePresetToForm(id),
+      "request-camera-permission": requestCameraPermission,
+      "request-notification-permission": requestNotificationPermission,
+      "enable-mobile-sound": enableMobileSound,
+      "focus-accessibility-setup": () =>
+        $("#mobileAccessibilitySetup")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        }),
+      "continue-install": continueInstall,
       "scan-product-field": () =>
         openBarcodeScanner((code) => {
           const input = $("#productBarcode");
@@ -2421,7 +2833,9 @@
         replacement.setSelectionRange(cursor, cursor);
       return;
     }
-    if (event.target.id === "posSearch") {
+    if (["posSearch", "mobilePosSearch"].includes(event.target.id)) {
+      const searchId = event.target.id;
+      const cursor = event.target.selectionStart;
       state.posQuery = event.target.value;
       const exact = state.products.find(
         (p) =>
@@ -2433,9 +2847,15 @@
           ),
       );
       if (exact && state.posQuery.trim().length >= 4) {
-        addToCart(exact.id);
         state.posQuery = "";
-      } else renderPOS();
+        addToCart(exact.id);
+      } else {
+        renderPOS();
+        const replacement = $(`#${searchId}`);
+        replacement?.focus({ preventScroll: true });
+        if (replacement?.setSelectionRange && cursor !== null)
+          replacement.setSelectionRange(cursor, cursor);
+      }
     }
     if (event.target.matches("[data-payment-input]")) updatePaymentStatus();
     if (event.target.matches("[data-purchase-input]")) updatePurchaseTotals();
@@ -2444,10 +2864,14 @@
     if (event.target.matches("[data-expense-amount]")) updateExpenseTotals();
     if (event.target.closest('form[data-form="receipt-settings"]'))
       updateReceiptSettingsPreview();
+    if (event.target.closest('form[data-form="appearance-settings"]'))
+      updateAppearancePreview();
+    if (event.target.closest('form[data-form="mobile-setup"]'))
+      updateInstallAccessibilityPreview();
   }
 
   function handleChange(event) {
-    if (event.target.id === "posCustomer")
+    if (["posCustomer", "mobilePosCustomer"].includes(event.target.id))
       state.selectedCustomerId = event.target.value;
     if (event.target.id === "reportPeriod") {
       state.reportPeriod = event.target.value;
@@ -2495,6 +2919,10 @@
       updateReturnTotals();
     if (event.target.closest('form[data-form="receipt-settings"]'))
       updateReceiptSettingsPreview();
+    if (event.target.closest('form[data-form="appearance-settings"]'))
+      updateAppearancePreview();
+    if (event.target.closest('form[data-form="mobile-setup"]'))
+      updateInstallAccessibilityPreview();
   }
 
   function updateReceiptSettingsPreview() {
@@ -2552,12 +2980,14 @@
       "void-request": saveVoidRequest,
       "approval-review": saveApprovalReview,
       "business-settings": saveBusinessSettings,
+      "appearance-settings": saveAppearanceSettings,
       "checkout-settings": saveCheckoutSettings,
       "receipt-settings": saveReceiptSettings,
       "inventory-settings": saveInventorySettings,
       "security-settings": saveSecuritySettings,
       "alerts-settings": saveAlertsSettings,
       "data-settings": saveDataSettings,
+      "mobile-setup": saveMobileSetup,
       "manual-barcode": saveManualBarcode,
     };
     try {
@@ -2964,7 +3394,10 @@
       createdAt,
     };
     await DB.completeSale(sale);
+    playConfiguredSound("checkout");
+    haptic([35, 35, 75]);
     state.cart = [];
+    state.mobilePosStage = "products";
     state.orderDiscountValue = 0;
     state.selectedCustomerId = "";
     state.saleNotes = "";
@@ -4714,6 +5147,75 @@
     );
   }
 
+  function applyThemePresetToForm(id) {
+    const form = $('form[data-form="appearance-settings"]');
+    if (!form) return;
+    const preset = THEME_PRESETS[id];
+    form.elements.appThemePreset.value = preset ? id : "custom";
+    if (preset) {
+      form.elements.appPrimaryColor.value = preset.primary;
+      form.elements.appHighlightColor.value = preset.highlight;
+      form.elements.appCanvasColor.value = preset.canvas;
+    }
+    $$(".theme-preset", form).forEach((button) =>
+      button.classList.toggle("active", button.dataset.id === form.elements.appThemePreset.value),
+    );
+    updateAppearancePreview();
+  }
+
+  function updateAppearancePreview() {
+    const form = $('form[data-form="appearance-settings"]');
+    if (!form) return;
+    const primary = form.elements.appPrimaryColor.value;
+    const highlight = form.elements.appHighlightColor.value;
+    const canvas = form.elements.appCanvasColor.value;
+    if (!validHex(primary) || !validHex(highlight) || !validHex(canvas)) return;
+    const preview = $("#themeLivePreview");
+    if (preview) {
+      preview.style.setProperty("--preview-primary", primary);
+      preview.style.setProperty("--preview-highlight", highlight);
+      preview.style.setProperty("--preview-canvas", canvas);
+    }
+    const presetMatch = Object.entries(THEME_PRESETS).find(
+      ([, preset]) =>
+        preset.primary.toLowerCase() === primary.toLowerCase() &&
+        preset.highlight.toLowerCase() === highlight.toLowerCase() &&
+        preset.canvas.toLowerCase() === canvas.toLowerCase(),
+    );
+    form.elements.appThemePreset.value = presetMatch?.[0] || "custom";
+    $$(".theme-preset", form).forEach((button) =>
+      button.classList.toggle("active", button.dataset.id === form.elements.appThemePreset.value),
+    );
+  }
+
+  async function saveAppearanceSettings(form) {
+    const data = Object.fromEntries(new FormData(form));
+    if (
+      !validHex(data.appPrimaryColor) ||
+      !validHex(data.appHighlightColor) ||
+      !validHex(data.appCanvasColor)
+    )
+      throw new Error("Choose valid colours for the app theme");
+    await persistBusinessSettings(
+      {
+        appThemePreset: THEME_PRESETS[data.appThemePreset]
+          ? data.appThemePreset
+          : "custom",
+        appPrimaryColor: data.appPrimaryColor,
+        appHighlightColor: data.appHighlightColor,
+        appCanvasColor: data.appCanvasColor,
+        textScale: ["standard", "large", "extra-large"].includes(data.textScale)
+          ? data.textScale
+          : "standard",
+        highContrast: form.elements.highContrast.checked,
+        reducedMotion: form.elements.reducedMotion.checked,
+        largeTouchTargets: form.elements.largeTouchTargets.checked,
+        accessibilityConfigured: true,
+      },
+      "App colours and accessibility updated",
+    );
+  }
+
   async function saveCheckoutSettings(form) {
     const data = Object.fromEntries(new FormData(form));
     const productView = data.productView === "grid" ? "grid" : "table";
@@ -4733,6 +5235,13 @@
         confirmClearCart: form.elements.confirmClearCart.checked,
         hapticFeedback: form.elements.hapticFeedback.checked,
         scanSound: form.elements.scanSound.checked,
+        checkoutSoundEnabled: form.elements.checkoutSoundEnabled.checked,
+        checkoutSound: ["success", "bright", "gentle"].includes(
+          data.checkoutSound,
+        )
+          ? data.checkoutSound
+          : "success",
+        soundVolume: clamp(num(data.soundVolume), 0, 100),
         showDashboardHero: form.elements.showDashboardHero.checked,
       },
       "Checkout preferences updated",
@@ -4778,6 +5287,15 @@
         expenseApprovalThreshold: Math.max(
           0,
           num(data.expenseApprovalThreshold),
+        ),
+        alertSoundEnabled: form.elements.alertSoundEnabled.checked,
+        alertSound: ["gentle", "bright", "urgent"].includes(data.alertSound)
+          ? data.alertSound
+          : "gentle",
+        alertSoundCooldownMinutes: clamp(
+          num(data.alertSoundCooldownMinutes) || 30,
+          1,
+          1440,
         ),
         alertExpiryEnabled: form.elements.alertExpiryEnabled.checked,
         alertApprovalEnabled: form.elements.alertApprovalEnabled.checked,
@@ -5235,20 +5753,7 @@
     setTimeout(() => callback?.(String(code).trim()), 100);
   }
   function playBeep() {
-    if (!settingEnabled("scanSound", true)) return;
-    try {
-      const context = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.frequency.value = 950;
-      gain.gain.value = 0.05;
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.09);
-    } catch (_) {
-      /* optional */
-    }
+    playConfiguredSound("scan");
   }
   function closeScanner() {
     if (state.scanner) {
@@ -5342,6 +5847,7 @@
     });
     window.addEventListener("appinstalled", () => {
       state.deferredPrompt = null;
+      closeModal();
       toast(
         "App installed",
         "MTECH Retail POS is now available from your home screen.",
@@ -5350,6 +5856,61 @@
       renderRegisterChip();
     });
   }
+
+  async function updateReadinessStatuses() {
+    try {
+      const storedSound = localStorage.getItem("mtech-mobile-sound-ready");
+      if (storedSound === "granted") state.readiness.sound = "granted";
+      const storedCamera = localStorage.getItem("mtech-camera-ready");
+      if (storedCamera === "granted") state.readiness.camera = "granted";
+    } catch (_) {}
+    if (navigator.permissions?.query) {
+      try {
+        const cameraPermission = await navigator.permissions.query({
+          name: "camera",
+        });
+        state.readiness.camera = cameraPermission.state;
+        cameraPermission.onchange = () => {
+          state.readiness.camera = cameraPermission.state;
+          if (state.currentView === "pos") renderPOS();
+        };
+      } catch (_) {
+        /* Camera permission querying is not supported in every browser. */
+      }
+    }
+    state.readiness.notifications =
+      "Notification" in window ? Notification.permission : "unsupported";
+    if (state.currentView === "pos") renderPOS();
+  }
+
+  function installReadinessModalBody() {
+    const readiness = mobileReadinessStatus();
+    const installed =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      navigator.standalone === true;
+    return `<div class="install-readiness-summary"><span>${I(readiness.ready === 4 ? "check" : "download")}</span><div><strong>${installed ? "This app is already installed" : `${readiness.ready} of 4 setup items ready`}</strong><p>Review each mobile capability before opening the browser’s install prompt. Camera, notifications and sound are optional and stay under your control.</p></div></div><div class="install-permission-grid">${readiness.items
+      .map((item) => {
+        const action = {
+          camera: "request-camera-permission",
+          notifications: "request-notification-permission",
+          sound: "enable-mobile-sound",
+          accessibility: "focus-accessibility-setup",
+        }[item.key];
+        return `<button type="button" class="install-permission ${item.ready ? "ready" : "pending"}" data-action="${action}" ${item.key === "notifications" && state.readiness.notifications === "unsupported" ? "disabled" : ""}>${I(item.icon)}<span><strong>${esc(item.label)}</strong><small>${esc(item.key === "accessibility" ? "App preferences, not an OS permission" : item.status)}</small></span><i>${item.ready ? I("check") : I("arrowRight")}</i></button>`;
+      })
+      .join("")}</div><form class="mobile-accessibility-form" data-form="mobile-setup" id="mobileAccessibilitySetup"><div class="settings-divider">Accessibility preferences</div><div class="form-grid"><div class="field"><label>Text size</label><select name="textScale"><option value="standard" ${state.business.textScale === "standard" ? "selected" : ""}>Standard</option><option value="large" ${state.business.textScale === "large" ? "selected" : ""}>Large</option><option value="extra-large" ${state.business.textScale === "extra-large" ? "selected" : ""}>Extra large</option></select></div><label class="checkbox-field"><input type="checkbox" name="highContrast" ${settingEnabled("highContrast", false) ? "checked" : ""}><span><strong>High contrast</strong><small>Stronger borders and text</small></span></label><label class="checkbox-field"><input type="checkbox" name="reducedMotion" ${settingEnabled("reducedMotion", false) ? "checked" : ""}><span><strong>Reduce motion</strong><small>Quieter transitions</small></span></label><label class="checkbox-field"><input type="checkbox" name="largeTouchTargets" ${settingEnabled("largeTouchTargets", false) ? "checked" : ""}><span><strong>Larger controls</strong><small>Easier one-handed use</small></span></label></div><div class="form-actions"><button class="button button-outline" type="submit">${I("save")}Save accessibility</button><button class="button button-primary" type="button" data-action="continue-install" ${installed ? "disabled" : ""}>${I("download")}${state.deferredPrompt ? "Continue to install" : "Show install steps"}</button></div></form><div class="notice info install-privacy-note">${I("lock")}<div><strong>Nothing is requested automatically.</strong><br>Each permission is requested only after you tap its control. You can install without enabling optional permissions.</div></div>`;
+  }
+
+  async function openInstallReadinessModal() {
+    await updateReadinessStatuses();
+    openModal(
+      "Mobile setup & installation",
+      "Prepare this device before adding MTECH POS to the home screen",
+      installReadinessModalBody(),
+      true,
+    );
+  }
+
   async function triggerInstall() {
     if (
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -5362,17 +5923,120 @@
       );
       return;
     }
+    await openInstallReadinessModal();
+  }
+
+  async function requestCameraPermission() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      state.readiness.camera = "unsupported";
+      toast("Camera unavailable", "This browser does not expose camera access.", "warning");
+      await openInstallReadinessModal();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      stream.getTracks().forEach((track) => track.stop());
+      state.readiness.camera = "granted";
+      try {
+        localStorage.setItem("mtech-camera-ready", "granted");
+      } catch (_) {}
+      toast("Camera ready", "Barcode scanning can use the rear camera.", "success");
+    } catch (error) {
+      state.readiness.camera =
+        error.name === "NotAllowedError" ? "denied" : "prompt";
+      toast(
+        "Camera not enabled",
+        error.name === "NotAllowedError"
+          ? "Camera access was denied. You can change it later in browser site settings."
+          : error.message,
+        "warning",
+      );
+    }
+    await openInstallReadinessModal();
+  }
+
+  async function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+      state.readiness.notifications = "unsupported";
+      toast("Notifications unavailable", "This browser does not support web notifications.", "warning");
+      await openInstallReadinessModal();
+      return;
+    }
+    try {
+      state.readiness.notifications = await Notification.requestPermission();
+      toast(
+        state.readiness.notifications === "granted"
+          ? "Notifications ready"
+          : "Notifications not enabled",
+        state.readiness.notifications === "granted"
+          ? "The browser can show permitted POS notifications."
+          : "You can continue without notifications.",
+        state.readiness.notifications === "granted" ? "success" : "warning",
+      );
+    } catch (error) {
+      toast("Notification request failed", error.message, "warning");
+    }
+    await openInstallReadinessModal();
+  }
+
+  async function enableMobileSound() {
+    await primeAudioFromGesture();
+    if (state.audioUnlocked) {
+      state.readiness.sound = "granted";
+      try {
+        localStorage.setItem("mtech-mobile-sound-ready", "granted");
+      } catch (_) {}
+      playTonePattern("bright");
+      toast("Sound ready", "Checkout and alert tones can now play on this device.", "success");
+    } else {
+      toast("Sound unavailable", "The browser did not allow audio on this tap.", "warning");
+    }
+    await openInstallReadinessModal();
+  }
+
+  function updateInstallAccessibilityPreview() {
+    const form = $('form[data-form="mobile-setup"]');
+    if (!form) return;
+    form.classList.add("is-configured");
+  }
+
+  async function saveMobileSetup(form) {
+    const data = Object.fromEntries(new FormData(form));
+    state.business = {
+      ...state.business,
+      textScale: ["standard", "large", "extra-large"].includes(data.textScale)
+        ? data.textScale
+        : "standard",
+      highContrast: form.elements.highContrast.checked,
+      reducedMotion: form.elements.reducedMotion.checked,
+      largeTouchTargets: form.elements.largeTouchTargets.checked,
+      accessibilityConfigured: true,
+    };
+    await DB.setSetting("business", state.business);
+    applyDisplayPreferences();
+    toast("Accessibility saved", "The display preferences are active now.", "success");
+    await openInstallReadinessModal();
+  }
+
+  async function continueInstall() {
     if (state.deferredPrompt) {
-      state.deferredPrompt.prompt();
-      await state.deferredPrompt.userChoice;
+      const prompt = state.deferredPrompt;
+      closeModal();
+      prompt.prompt();
+      const choice = await prompt.userChoice;
       state.deferredPrompt = null;
+      if (choice?.outcome !== "accepted")
+        toast("Installation paused", "You can reopen setup and install later.", "info");
       return;
     }
     const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
     openModal(
-      "Install MTECH Retail POS",
-      "Add the POS to your phone home screen",
-      `<div class="notice info">${I("download")}<div>${isiOS ? "In Safari, tap the Share button, then choose “Add to Home Screen”." : "In Chrome, open the browser menu and choose “Install app” or “Add to Home screen”. If the option is missing, reload the page and use the site for a few moments."}</div></div><div class="breakdown-list"><div class="breakdown-row"><span>Secure HTTPS connection</span><strong>${location.protocol === "https:" ? "Ready" : "Required"}</strong></div><div class="breakdown-row"><span>Service worker</span><strong>${"serviceWorker" in navigator ? "Supported" : "Unavailable"}</strong></div><div class="breakdown-row"><span>Manifest</span><strong>Configured</strong></div></div>`,
+      "Install from your browser",
+      "The setup review is complete",
+      `<div class="notice info">${I("download")}<div>${isiOS ? "In Safari, tap Share, then choose “Add to Home Screen”." : "Open the browser menu and choose “Install app” or “Add to Home screen”. If the option is missing, reload this secure page and try again."}</div></div><div class="breakdown-list"><div class="breakdown-row"><span>Secure HTTPS connection</span><strong>${location.protocol === "https:" ? "Ready" : "Required"}</strong></div><div class="breakdown-row"><span>Offline service worker</span><strong>${"serviceWorker" in navigator ? "Ready" : "Unavailable"}</strong></div><div class="breakdown-row"><span>App manifest</span><strong>Ready</strong></div><div class="breakdown-row"><span>Permissions</span><strong>User controlled</strong></div></div><div class="form-actions"><button class="button button-primary" data-action="close-modal">Done</button></div>`,
     );
   }
   async function registerServiceWorker() {

@@ -19,10 +19,36 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/icon-192.png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-    <link rel="stylesheet" href="/assets/css/app.css?v=4.1.0-r3" />
+    <script>
+      (() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem("mtech-app-theme") || "{}");
+          const root = document.documentElement;
+          if (/^#[0-9a-f]{6}$/i.test(saved.primary || ""))
+            root.style.setProperty("--primary", saved.primary);
+          if (/^#[0-9a-f]{6}$/i.test(saved.highlight || ""))
+            root.style.setProperty("--accent", saved.highlight);
+          if (/^#[0-9a-f]{6}$/i.test(saved.canvas || ""))
+            root.style.setProperty("--soft", saved.canvas);
+          if (/^#[0-9a-f]{6}$/i.test(saved.primary || ""))
+            document.querySelector('meta[name="theme-color"]')?.setAttribute("content", saved.primary);
+        } catch (_) {}
+      })();
+    </script>
+    <link rel="stylesheet" href="/assets/css/app.css?v=4.2.0-r1" />
     <title>MTECH Retail POS</title>
   </head>
-  <body>
+  <body class="is-booting">
+    <div class="startup-splash" id="startupSplash" role="status" aria-live="polite">
+      <div class="startup-splash-card">
+        <img src="/icons/icon-192.png" alt="" width="88" height="88" />
+        <span class="startup-eyebrow">MTECH Smart POS</span>
+        <h1>Preparing your retail workspace</h1>
+        <p id="startupStatus">Loading secure offline data…</p>
+        <div class="startup-progress" aria-hidden="true"><span></span></div>
+        <small>Sales · Stock · Alerts · Expenses</small>
+      </div>
+    </div>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar" aria-label="Main navigation">
         <div class="brand-block">
@@ -260,9 +286,9 @@
     <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
     <div id="printArea" class="print-area"></div>
 
-    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.1.0-r3"></script>
-    <script src="/assets/js/icons.js?v=4.1.0-r3"></script>
-    <script src="/assets/js/db.js?v=4.1.0-r3"></script>
-    <script src="/assets/js/app.js?v=4.1.0-r3"></script>
+    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.2.0-r1"></script>
+    <script src="/assets/js/icons.js?v=4.2.0-r1"></script>
+    <script src="/assets/js/db.js?v=4.2.0-r1"></script>
+    <script src="/assets/js/app.js?v=4.2.0-r1"></script>
   </body>
 </html>

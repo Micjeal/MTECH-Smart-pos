@@ -2,7 +2,7 @@
   "id": "/",
   "name": "MTECH Retail POS",
   "short_name": "MTECH POS",
-  "description": "Offline-first retail POS with barcode scanning, branded receipts, controlled refunds, operational alerts, expense management, purchasing and reporting.",
+  "description": "Offline-first retail POS with split-stage mobile checkout, barcode scanning, branded receipts, controlled refunds, configurable alerts, expense management and reporting.",
   "start_url": "/?source=pwa#/dashboard",
   "scope": "/",
   "display": "standalone",
@@ -115,7 +115,7 @@
       "sizes": "780x1688",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Mobile point-of-sale checkout"
+      "label": "Split-stage mobile point-of-sale checkout"
     }
   ]
 }
