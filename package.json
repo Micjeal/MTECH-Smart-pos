@@ -1,0 +1,10 @@
+{
+  "name": "mtech-smart-pos",
+  "version": "4.3.0",
+  "private": true,
+  "description": "Offline-first retail point-of-sale PWA",
+  "scripts": {
+    "dev": "node scripts/dev-server.cjs",
+    "test:phase1": "node tests/ui-phase1.test.cjs"
+  }
+}

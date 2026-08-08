@@ -1,11 +1,19 @@
-# MTECH Retail POS v4.2.0
+# MTECH Retail POS v4.3.0
 
-MTECH Retail POS is an offline-first, installable point-of-sale and inventory system for independent shops. Version 4.2 adds a split-stage mobile checkout, personalized app colours and accessibility controls, a setup-first installation flow, and configurable checkout and alert sounds to the barcode scanning, branded receipts, controlled returns and voids, alerts, expenses, purchasing, and reporting already available in version 4.1.
+MTECH Retail POS is an offline-first, installable point-of-sale and inventory system for independent shops. Version 4.3 begins the full frontend modernization with a shared mobile operations design for Dashboard, Sales & Returns, and Cash Register while preserving the split-stage checkout, custom colours, accessibility controls, installation readiness, sounds, barcode scanning, receipts, controlled returns, alerts, expenses, purchasing, and reporting introduced earlier.
 
 ## Project links
 
 - Production app: https://mtech-smart-pos.vercel.app/
 - GitHub repository: https://github.com/Micjeal/MTECH-Smart-pos
+
+## Version 4.3 Phase 1 frontend
+
+- Turns Dashboard into a focused daily command centre with register readiness, priority alerts, sales performance, quick operations, and responsive receipt cards.
+- Adds functional All, Completed, Returned, and Voided stages to Sales & Returns, plus mobile receipt cards and approval records designed for touch.
+- Converts Cash Register into a guided Open → Operate → Close workflow with cash composition, shift controls, movement timelines, and a sticky mobile action.
+- Introduces shared page heroes, metric strips, segmented filters, transaction cards, workflow sheets, responsive empty states, and safe-area-aware mobile actions.
+- Keeps the selected app colours, large text, high contrast, reduced motion, and larger touch targets active throughout the new screens.
 
 ## Version 4.2 mobile experience
 

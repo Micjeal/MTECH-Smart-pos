@@ -28,7 +28,7 @@
       .slice(0, 10);
   const MAX_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
   const TARGET_PRODUCT_IMAGE_BYTES = 520 * 1024;
-  const APP_VERSION = "4.2.0";
+  const APP_VERSION = "4.3.0";
   const DEFAULT_PRODUCT_IMAGES = {
     "prod-001": "/assets/images/products/sugar-1kg.webp",
     "prod-003": "/assets/images/products/mineral-water-500ml.webp",
@@ -231,6 +231,7 @@
     expenseStatusFilter: "all",
     expenseCategoryFilter: "all",
     expensePeriodFilter: "month",
+    salesStatusFilter: "all",
     alertSeverityFilter: "all",
     alertCategoryFilter: "all",
     alertStatusFilter: "open",
@@ -1314,6 +1315,62 @@
   function statCard(label, value, iconName, detail = "", tone = "") {
     return `<article class="stat-card"><div class="stat-copy"><span>${esc(label)}</span><strong>${value}</strong><small>${esc(detail)}</small></div><div class="stat-icon ${tone}">${I(iconName)}</div></article>`;
   }
+  function operationMetric(label, value, detail, iconName, tone = "") {
+    return `<article class="operation-metric ${tone}"><div class="operation-metric-icon">${I(iconName)}</div><div><span>${esc(label)}</span><strong>${value}</strong><small>${esc(detail)}</small></div></article>`;
+  }
+  function transactionCard(sale, compact = false) {
+    const itemCount = (sale.items || []).reduce(
+      (sum, item) => sum + num(item.quantity),
+      0,
+    );
+    const pending = pendingApproval(sale.id);
+    const hasReturn = state.returns.some((item) => item.saleId === sale.id);
+    const canReturn =
+      !compact &&
+      !["refunded", "voided"].includes(sale.status) &&
+      !pending;
+    const canVoid =
+      !compact && sale.status === "completed" && !hasReturn && !pending;
+    return `<article class="transaction-card" data-status="${esc(sale.status)}">
+      <div class="transaction-card-head"><div class="transaction-receipt-icon">${I("receipt")}</div><div class="transaction-card-title"><strong>${esc(sale.receiptNo)}</strong><span>${formatDateTime(sale.createdAt)}</span></div>${statusBadge(sale.status)}</div>
+      <div class="transaction-card-body"><div><span>Customer</span><strong>${esc(sale.customerName || customerName(sale.customerId))}</strong></div><div class="transaction-total"><span>Total</span><strong>${formatMoney(sale.total)}</strong></div></div>
+      ${pending ? `<div class="transaction-pending">${I("lock")}<span>${esc(pending.type)} approval pending</span></div>` : ""}
+      <div class="transaction-card-foot"><div><span>${esc(paymentLabel(sale.paymentMethod))}</span><span>${itemCount} item${itemCount === 1 ? "" : "s"}</span></div><div class="transaction-actions"><button class="mini-button labelled" data-action="view-sale" data-id="${esc(sale.id)}">${I("eye")}<span>Open</span></button>${compact ? "" : `<button class="mini-button labelled" data-action="share-sale" data-id="${esc(sale.id)}">${I("share")}<span>Share</span></button>${canReturn ? `<button class="mini-button labelled" data-action="return-sale" data-id="${esc(sale.id)}">${I("return")}<span>Return</span></button>` : ""}${canVoid ? `<button class="mini-button danger" data-action="request-void" data-id="${esc(sale.id)}" aria-label="Request void">${I("close")}</button>` : ""}`}</div></div>
+    </article>`;
+  }
+  function approvalQueueCard(approval) {
+    return `<article class="approval-queue-card"><div class="approval-queue-head"><div><span>${esc(approval.approvalNo)}</span><strong>${esc(approval.type)} · ${esc(approval.receiptNo)}</strong></div>${statusBadge(approval.status)}</div><p>${esc(approval.reason || "No reason supplied")}</p><div class="approval-queue-meta"><span>${formatMoney(approval.amount)}</span><span>${esc(approval.requestedBy || "Unknown operator")}</span><span>${formatDateTime(approval.requestedAt)}</span></div><div class="approval-queue-actions"><button class="button button-outline" data-action="view-approval" data-id="${esc(approval.id)}">${I("eye")}Review record</button>${approval.status === "pending" ? `<button class="button button-primary" data-action="review-approval" data-decision="approve" data-id="${esc(approval.id)}">${I("check")}Approve</button><button class="icon-button danger-text" data-action="review-approval" data-decision="reject" data-id="${esc(approval.id)}" aria-label="Reject approval">${I("close")}</button>` : ""}</div></article>`;
+  }
+  function cashMovementCards(movements) {
+    if (!movements.length)
+      return emptyState(
+        "No cash movements yet",
+        "Opening float, cash sales and drawer adjustments will appear here.",
+        "register",
+      );
+    return `<div class="cash-movement-timeline">${movements
+      .slice()
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map(
+        (movement) =>
+          `<article class="cash-movement-card ${num(movement.amount) >= 0 ? "positive" : "negative"}"><div class="cash-movement-icon">${I(num(movement.amount) >= 0 ? "arrowDown" : "arrowUp")}</div><div class="cash-movement-copy"><strong>${esc(String(movement.type || "movement").replaceAll("-", " "))}</strong><span>${esc(movement.note || movement.referenceType || "Cash register activity")}</span><small>${formatDateTime(movement.createdAt)}</small></div><strong class="cash-movement-amount">${num(movement.amount) >= 0 ? "+ " : ""}${formatMoney(movement.amount)}</strong></article>`,
+      )
+      .join("")}</div>`;
+  }
+  function registerHistoryCards() {
+    if (!state.registerSessions.length)
+      return emptyState(
+        "No register history",
+        "Open and close a register to create shift records.",
+        "register",
+      );
+    return `<div class="register-history-cards">${state.registerSessions
+      .map(
+        (session) =>
+          `<article class="register-history-card"><div><strong>${esc(session.cashier)}</strong><span>${formatDateTime(session.openedAt)}</span></div>${statusBadge(session.status)}<dl><div><dt>Opening</dt><dd>${formatMoney(session.openingFloat)}</dd></div><div><dt>Expected</dt><dd>${formatMoney(session.expectedCash)}</dd></div><div><dt>Counted</dt><dd>${formatMoney(session.actualCash)}</dd></div><div><dt>Difference</dt><dd class="${Math.abs(num(session.difference)) > 0.01 ? "danger-text" : ""}">${formatMoney(session.difference)}</dd></div></dl></article>`,
+      )
+      .join("")}</div>`;
+  }
   function isToday(value) {
     const d = new Date(value),
       n = new Date();
@@ -1405,20 +1462,29 @@
       (request) => request.status === "pending",
     ).length;
     const priorityAlerts = activeSystemAlerts();
+    const session = openSession();
     const hero = settingEnabled("showDashboardHero", true)
-      ? `<section class="dashboard-hero">
-        <div class="dashboard-hero-copy"><span class="eyebrow">${esc(state.business.businessName)} · command centre</span><h2>${greeting}. Your shop is ready.</h2><p>Track sales, protect stock and serve customers from one offline-ready workspace.</p><div class="dashboard-hero-actions"><button class="button hero-primary" data-view="pos">${I("cart")}Start a sale</button><button class="button hero-secondary" data-action="new-product">${I("plus")}Add product</button></div></div>
-        <div class="hero-snapshot"><div><span>This month</span><strong>${formatMoney(monthRevenue)}</strong><small>Sales revenue</small></div><div><span>Inventory value</span><strong>${formatMoney(inventoryRetailValue)}</strong><small>At retail price</small></div><div><span>Attention</span><strong>${priorityAlerts.length}</strong><small>${priorityAlerts.length === 1 ? "open operational alert" : "open operational alerts"}</small></div></div>
+      ? `<section class="dashboard-hero operations-hero">
+        <div class="dashboard-hero-copy"><span class="eyebrow">Today · retail command centre</span><h2>${greeting}. Your shop is ready.</h2><p>Start the next sale, monitor cash and deal with important risks from one focused workspace.</p><div class="dashboard-hero-actions"><button class="button hero-primary" data-view="pos">${I("cart")}Start new sale</button><button class="button hero-secondary" data-action="new-expense">${I("wallet")}Add expense</button></div><div class="operations-status-row"><button data-view="register" class="operations-status-pill ${session ? "ready" : "attention"}"><span>${I("register")}</span><span><strong>${session ? "Register open" : "Register closed"}</strong><small>${session ? esc(session.cashier) : "Open before cash sales"}</small></span>${I("arrowRight")}</button><button data-view="alerts" class="operations-status-pill ${priorityAlerts.length ? "attention" : "ready"}"><span>${I(priorityAlerts.length ? "bell" : "check")}</span><span><strong>${priorityAlerts.length} open alert${priorityAlerts.length === 1 ? "" : "s"}</strong><small>${pendingApprovals ? `${pendingApprovals} approval${pendingApprovals === 1 ? "" : "s"} waiting` : priorityAlerts.length ? "Review the highest-priority items" : "Operations currently stable"}</small></span>${I("arrowRight")}</button></div></div>
+        <aside class="dashboard-today-card"><span>Today’s net sales</span><strong>${formatMoney(todayRevenue)}</strong><small>${todaySales.length} completed transaction${todaySales.length === 1 ? "" : "s"}</small><div><span><small>Returns</small><strong>${formatMoney(todayReturns)}</strong></span><span><small>Expenses</small><strong>${formatMoney(todayExpenses)}</strong></span></div><button class="text-button" data-view="reports">View performance ${I("arrowRight")}</button></aside>
       </section>`
       : "";
-    $("#appView").innerHTML = `<div class="page-stack">
+    $("#appView").innerHTML = `<div class="page-stack phase-page dashboard-phase-page">
       ${hero}
-      <section class="stats-grid">
-        ${statCard("Today’s net sales", formatMoney(todayRevenue), "money", `${todaySales.length} completed transactions`, "success")}
-        ${statCard("Estimated profit", formatMoney(todayRevenue - todayCost - todayExpenses), "chart", "Sales less cost and expenses", "info")}
-        ${statCard("Low-stock products", lowStockAlertsEnabled ? lowStock.length : "Off", "warning", lowStockAlertsEnabled ? (lowStock.length ? "Requires attention" : "Stock levels are healthy") : `${lowStockRecords.length} products currently below level`, lowStockAlertsEnabled && lowStock.length ? "warning" : "success")}
-        ${statCard("Customer credit due", formatMoney(receivables), "credit", `${state.customers.filter((c) => num(c.balance) > 0).length} customer accounts`, receivables ? "warning" : "success")}
+      <section class="operation-metric-strip" aria-label="Business summary">
+        ${operationMetric("Estimated profit", formatMoney(todayRevenue - todayCost - todayExpenses), "Today after cost and expenses", "chart", "success")}
+        ${operationMetric("This month", formatMoney(monthRevenue), "Net sales revenue", "calendar", "info")}
+        ${operationMetric("Low stock", lowStockAlertsEnabled ? lowStock.length : "Off", lowStockAlertsEnabled ? (lowStock.length ? "Products need attention" : "Stock levels are healthy") : `${lowStockRecords.length} below level`, "warning", lowStockAlertsEnabled && lowStock.length ? "warning" : "success")}
+        ${operationMetric("Credit due", formatMoney(receivables), `${state.customers.filter((customer) => num(customer.balance) > 0).length} customer accounts`, "credit", receivables ? "warning" : "success")}
       </section>
+      <section class="dashboard-quick-section"><div class="section-heading-inline"><div><span class="eyebrow">Quick actions</span><h2>What do you need to do?</h2></div><small>Designed for one-handed mobile use</small></div><div class="quick-action-grid phase-quick-actions">
+        ${quickCard("pos", "cart", "New sale", "Open checkout")}
+        ${quickCardAction("new-expense", "wallet", "Add expense", "Record a cost")}
+        ${quickCardAction("new-purchase", "truck", "Receive stock", "Supplier delivery")}
+        ${quickCard("register", "register", session ? "Register" : "Open register", "Control cash")}
+        ${quickCardAction("new-product", "package", "Add product", "Catalogue item")}
+        ${quickCardAction("new-customer", "users", "Add customer", "Credit profile")}
+      </div></section>
       <section class="dashboard-grid">
         <article class="panel"><div class="panel-header"><div><h2>Sales trend</h2><p>Completed sales during the last seven days</p></div><button class="text-button" data-view="reports">Open reports</button></div>${renderSevenDayChart()}</article>
         <article class="panel"><div class="panel-header"><div><h2>Priority alerts</h2><p>Highest-impact actions across the business</p></div><button class="text-button" data-view="alerts">Open alerts centre</button></div>
@@ -1439,19 +1505,7 @@
           }
         </article>
       </section>
-      <section class="dashboard-grid equal">
-        <article class="panel"><div class="panel-header"><div><h2>Recent sales</h2><p>Latest completed and returned transactions</p></div><button class="text-button" data-view="sales">View all</button></div>
-          ${recentSales.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Receipt</th><th>Customer</th><th>Total</th><th>Status</th><th>Time</th></tr></thead><tbody>${recentSales.map((sale) => `<tr><td><strong>${esc(sale.receiptNo)}</strong></td><td>${esc(sale.customerName || customerName(sale.customerId))}</td><td><strong>${formatMoney(sale.total)}</strong></td><td>${statusBadge(sale.status)}</td><td>${formatDateTime(sale.createdAt)}</td></tr>`).join("")}</tbody></table></div>` : emptyState("No sales yet", "Start a new sale to populate your dashboard.", "receipt")}
-        </article>
-        <article class="panel"><div class="panel-header"><div><h2>Quick operations</h2><p>Common daily retail tasks</p></div></div><div class="quick-action-grid">
-          ${quickCard("pos", "cart", "New sale", "Open the checkout terminal")}
-          ${quickCardAction("new-product", "package", "Add product", "Create a product and barcode")}
-          ${quickCardAction("new-purchase", "truck", "Receive stock", "Record supplier delivery")}
-          ${quickCard("register", "register", openSession() ? "Register details" : "Open register", "Control the cash drawer")}
-          ${quickCardAction("new-customer", "users", "Add customer", "Set up a credit account")}
-          ${quickCardAction("export-backup", "database", "Back up data", "Download a complete backup")}
-        </div></article>
-      </section>
+      <section class="panel dashboard-transactions-panel"><div class="panel-header"><div><h2>Recent sales</h2><p>Latest receipts, payments and return status</p></div><button class="text-button" data-view="sales">View all sales</button></div>${recentSales.length ? `<div class="transaction-card-list dashboard-transaction-list">${recentSales.map((sale) => transactionCard(sale, true)).join("")}</div>` : emptyState("No sales yet", "Start a new sale to populate your dashboard.", "receipt")}</section>
       <section class="panel"><div class="panel-header"><div><h2>Recent activity</h2><p>Operational audit trail on this device</p></div></div>
         ${
           state.activityLog.length
@@ -2146,7 +2200,7 @@
 
   function renderSales() {
     const query = state.filters.sales.toLowerCase();
-    const sales = state.sales.filter(
+    const searchedSales = state.sales.filter(
       (sale) =>
         !query ||
         [
@@ -2159,9 +2213,14 @@
             .includes(query),
         ),
     );
-    const completed = sales.filter(
-      (s) => s.status !== "voided",
-    );
+    const statusFilter = state.salesStatusFilter || "all";
+    const sales = searchedSales.filter((sale) => {
+      if (statusFilter === "all") return true;
+      if (statusFilter === "returned")
+        return ["partially-refunded", "refunded"].includes(sale.status);
+      return sale.status === statusFilter;
+    });
+    const completed = state.sales.filter((sale) => sale.status !== "voided");
     const returns = state.returns.reduce((s, r) => s + num(r.refundTotal), 0);
     const approvals = state.approvalRequests
       .filter((request) => request.type !== "expense")
@@ -2174,26 +2233,42 @@
     const pendingCount = approvals.filter(
       (approval) => approval.status === "pending",
     ).length;
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="stats-grid">${statCard("Sales recorded", state.sales.length, "receipt", "All transaction receipts", "info")}${statCard("Gross sales", formatMoney(completed.reduce((s, x) => s + num(x.total), 0)), "money", "Before approved returns; excludes voids", "success")}${statCard("Approved refunds", formatMoney(returns), "return", `${state.returns.length} processed returns`, "warning")}${statCard("Pending approvals", pendingCount, "lock", "Returns and void requests awaiting review", pendingCount ? "warning" : "success")}</section>
-      <section class="panel approval-panel"><div class="panel-header"><div><h2>Return and void approvals</h2><p>Every decision records the requester, reviewer, time and reason</p></div>${state.business.approvalPinHash ? '<span class="badge success">Manager PIN active</span>' : '<button class="button button-warning" data-view="settings">Set manager PIN</button>'}</div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Request</th><th>Receipt</th><th>Type</th><th>Amount</th><th>Requested by</th><th>Status</th><th></th></tr></thead><tbody>${approvals.length ? approvals.slice(0, 12).map((approval) => `<tr><td data-label="Request"><div class="cell-copy"><strong>${esc(approval.approvalNo)}</strong><span>${formatDateTime(approval.requestedAt)}</span></div></td><td data-label="Receipt">${esc(approval.receiptNo)}</td><td data-label="Type"><strong>${esc(approval.type)}</strong><span class="table-subtext">${esc(approval.reason || "No reason")}</span></td><td data-label="Amount"><strong>${formatMoney(approval.amount)}</strong></td><td data-label="Requested by">${esc(approval.requestedBy || "Unknown")}</td><td data-label="Status">${statusBadge(approval.status)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-approval" data-id="${approval.id}" title="View approval record">${I("eye")}</button>${approval.status === "pending" ? `<button class="mini-button success" data-action="review-approval" data-decision="approve" data-id="${approval.id}" title="Approve">${I("check")}</button><button class="mini-button danger" data-action="review-approval" data-decision="reject" data-id="${approval.id}" title="Reject">${I("close")}</button>` : ""}</div></td></tr>`).join("") : `<tr><td colspan="7">${emptyState("No approval requests", "Return and void requests will appear here for manager review.", "lock")}</td></tr>`}</tbody></table></div></section>
-      <div class="page-toolbar"><div class="toolbar-title"><h2>Transaction history</h2><p>Open receipts, reprint and return individual products</p></div><button class="button button-primary" data-view="pos">${I("plus")}New sale</button></div>
-      <section class="panel"><div class="panel-header"><div class="filter-bar"><div class="search-box">${I("search")}<input data-filter="sales" value="${esc(state.filters.sales)}" placeholder="Search receipt or customer"></div><select class="select-control" id="salesStatusFilter"><option value="">All statuses</option><option value="completed">Completed</option><option value="partially-refunded">Partially refunded</option><option value="refunded">Refunded</option><option value="voided">Voided</option></select></div><button class="button button-outline" data-action="export-sales">${I("download")}Export CSV</button></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Receipt</th><th>Date</th><th>Customer</th><th>Payment</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${sales.length ? sales.map((sale) => {
+    const grossSales = completed.reduce((sum, sale) => sum + num(sale.total), 0);
+    const returnedCount = searchedSales.filter((sale) =>
+      ["partially-refunded", "refunded"].includes(sale.status),
+    ).length;
+    const statusTabs = [
+      ["all", "All", searchedSales.length],
+      [
+        "completed",
+        "Completed",
+        searchedSales.filter((sale) => sale.status === "completed").length,
+      ],
+      ["returned", "Returned", returnedCount],
+      [
+        "voided",
+        "Voided",
+        searchedSales.filter((sale) => sale.status === "voided").length,
+      ],
+    ];
+    const salesTableRows = sales.length
+      ? sales
+          .map((sale) => {
         const hasReturn = state.returns.some((item) => item.saleId === sale.id);
         const pending = pendingApproval(sale.id);
         const canReturn = !["refunded", "voided"].includes(sale.status) && !pending;
         const canVoid = sale.status === "completed" && !hasReturn && !pending;
         return `<tr data-status="${sale.status}"><td data-label="Receipt"><div class="cell-copy"><strong>${esc(sale.receiptNo)}</strong>${pending ? `<span class="approval-pending-label">${esc(pending.type)} approval pending</span>` : ""}</div></td><td data-label="Date">${formatDateTime(sale.createdAt)}</td><td data-label="Customer">${esc(sale.customerName || customerName(sale.customerId))}</td><td data-label="Payment">${esc(paymentLabel(sale.paymentMethod))}</td><td data-label="Items">${sale.items?.reduce((s, i) => s + num(i.quantity), 0) || 0}</td><td data-label="Total"><strong>${formatMoney(sale.total)}</strong></td><td data-label="Status">${statusBadge(sale.status)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-sale" data-id="${sale.id}" title="View sale">${I("eye")}</button><button class="mini-button" data-action="print-sale" data-id="${sale.id}" title="Print receipt">${I("print")}</button><button class="mini-button" data-action="download-sale" data-id="${sale.id}" title="Download receipt image">${I("download")}</button>${canReturn ? `<button class="mini-button" data-action="return-sale" data-id="${sale.id}" title="Request return">${I("return")}</button>` : ""}${canVoid ? `<button class="mini-button danger" data-action="request-void" data-id="${sale.id}" title="Request void">${I("close")}</button>` : ""}</div></td></tr>`;
-      }).join("") : `<tr><td colspan="8">${emptyState("No sales found", "Complete a sale to generate a receipt.", "receipt")}</td></tr>`}</tbody></table></div></section>
+          })
+          .join("")
+      : `<tr><td colspan="8">${emptyState("No sales found", "Try another status or complete a new sale.", "receipt")}</td></tr>`;
+    $("#appView").innerHTML = `<div class="page-stack phase-page sales-phase-page">
+      <section class="operations-subhero sales-operations-hero"><div><span class="eyebrow">Receipts and customer care</span><h2>Every transaction, ready to review.</h2><p>Find a receipt, share it professionally, or start a controlled return without losing the audit trail.</p><div class="operations-hero-actions"><button class="button button-primary" data-view="pos">${I("plus")}New sale</button><button class="button button-outline" data-action="export-sales">${I("download")}Export sales</button></div></div><aside><div class="operations-subhero-stat"><span>Net after refunds</span><strong>${formatMoney(grossSales - returns)}</strong><small>${state.sales.length} receipts stored on this device</small></div><button class="operations-status-pill ${pendingCount ? "attention" : "ready"}" data-action="${pendingCount ? "view-approval" : "open-approval-settings"}" ${pendingCount ? `data-id="${esc(approvals.find((approval) => approval.status === "pending")?.id || "")}"` : ""}><span>${I(pendingCount ? "lock" : "check")}</span><span><strong>${pendingCount ? `${pendingCount} approval${pendingCount === 1 ? "" : "s"} waiting` : "Approval queue clear"}</strong><small>${state.business.approvalPinHash ? "Manager PIN is active" : "Set a manager PIN in Settings"}</small></span>${I("arrowRight")}</button></aside></section>
+      <section class="operation-metric-strip" aria-label="Sales summary">${operationMetric("Gross sales", formatMoney(grossSales), "Excludes voided receipts", "money", "success")}${operationMetric("Approved refunds", formatMoney(returns), `${state.returns.length} processed return${state.returns.length === 1 ? "" : "s"}`, "return", returns ? "warning" : "success")}${operationMetric("Pending approvals", pendingCount, "Returns and voids awaiting review", "lock", pendingCount ? "warning" : "success")}${operationMetric("Receipts", state.sales.length, "Stored offline on this device", "receipt", "info")}</section>
+      <section class="panel sales-browser-panel"><div class="sales-browser-head"><div><span class="eyebrow">Transaction history</span><h2>Find a sale or receipt</h2></div><div class="sales-search-actions"><div class="search-box">${I("search")}<input data-filter="sales" value="${esc(state.filters.sales)}" placeholder="Receipt, customer or payment"></div><button class="icon-button" data-action="export-sales" aria-label="Export sales">${I("download")}</button></div></div><div class="operations-segmented" role="tablist" aria-label="Sale status">${statusTabs.map(([value, label, count]) => `<button role="tab" aria-selected="${statusFilter === value}" class="${statusFilter === value ? "active" : ""}" data-action="sales-status" data-id="${value}"><span>${label}</span><strong>${count}</strong></button>`).join("")}</div><div class="phase-desktop-only table-wrap"><table class="data-table"><thead><tr><th>Receipt</th><th>Date</th><th>Customer</th><th>Payment</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${salesTableRows}</tbody></table></div><div class="phase-mobile-only transaction-card-list">${sales.length ? sales.map((sale) => transactionCard(sale)).join("") : emptyState("No sales found", "Try another status or complete a new sale.", "receipt")}</div></section>
+      <section class="panel approval-panel phase-approval-panel"><div class="panel-header"><div><h2>Return and void approvals</h2><p>Every decision records the requester, reviewer, time and reason</p></div>${state.business.approvalPinHash ? '<span class="badge success">Manager PIN active</span>' : '<button class="button button-warning" data-view="settings">Set manager PIN</button>'}</div><div class="phase-desktop-only table-wrap"><table class="data-table"><thead><tr><th>Request</th><th>Receipt</th><th>Type</th><th>Amount</th><th>Requested by</th><th>Status</th><th></th></tr></thead><tbody>${approvals.length ? approvals.slice(0, 12).map((approval) => `<tr><td><div class="cell-copy"><strong>${esc(approval.approvalNo)}</strong><span>${formatDateTime(approval.requestedAt)}</span></div></td><td>${esc(approval.receiptNo)}</td><td><strong>${esc(approval.type)}</strong><span class="table-subtext">${esc(approval.reason || "No reason")}</span></td><td><strong>${formatMoney(approval.amount)}</strong></td><td>${esc(approval.requestedBy || "Unknown")}</td><td>${statusBadge(approval.status)}</td><td><div class="row-actions"><button class="mini-button" data-action="view-approval" data-id="${esc(approval.id)}" title="View approval record">${I("eye")}</button>${approval.status === "pending" ? `<button class="mini-button success" data-action="review-approval" data-decision="approve" data-id="${esc(approval.id)}" title="Approve">${I("check")}</button><button class="mini-button danger" data-action="review-approval" data-decision="reject" data-id="${esc(approval.id)}" title="Reject">${I("close")}</button>` : ""}</div></td></tr>`).join("") : `<tr><td colspan="7">${emptyState("No approval requests", "Return and void requests will appear here for manager review.", "lock")}</td></tr>`}</tbody></table></div><div class="phase-mobile-only approval-queue-list">${approvals.length ? approvals.slice(0, 12).map(approvalQueueCard).join("") : emptyState("No approval requests", "Return and void requests will appear here for manager review.", "lock")}</div></section>
+      <button class="mobile-sticky-primary" data-view="pos">${I("plus")}<span>New sale</span></button>
     </div>`;
-    $("#salesStatusFilter")?.addEventListener("change", (e) =>
-      $$("[data-status]").forEach(
-        (row) =>
-          (row.hidden = Boolean(
-            e.target.value && row.dataset.status !== e.target.value,
-          )),
-      ),
-    );
   }
 
   function alertCategoryLabel(category) {
@@ -2416,14 +2491,27 @@
   function renderRegister() {
     const session = openSession();
     const summary = session ? sessionCashSummary(session.id) : null;
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="register-hero">
-        <article class="panel register-status-card"><div class="register-status-top"><div><h2>${session ? "Register is open" : "Register is closed"}</h2><p>${session ? `Opened ${formatDateTime(session.openedAt)} by ${esc(session.cashier)}` : "Open a register before controlling physical cash movements."}</p></div>${session ? '<span class="badge success">Open</span>' : '<span class="badge">Closed</span>'}</div>
-          ${session ? `<div class="register-metrics"><div class="register-metric"><span>Opening float</span><strong>${formatMoney(session.openingFloat)}</strong></div><div class="register-metric"><span>Expected cash</span><strong>${formatMoney(summary.expected)}</strong></div><div class="register-metric"><span>Cash movements</span><strong>${summary.movements.length}</strong></div></div><div class="register-actions"><button class="button button-outline" data-action="cash-in">${I("arrowDown")}Cash in</button><button class="button button-outline" data-action="cash-out">${I("arrowUp")}Cash out</button><button class="button button-danger" data-action="close-register">${I("lock")}Close register</button></div>` : `<div class="notice warning" style="margin-top:18px">${I("warning")}<div>Sales can still be recorded, but cash reconciliation will be incomplete until a register is opened.</div></div><div class="register-actions"><button class="button button-primary" data-action="open-register">${I("register")}Open register</button></div>`}
-        </article>
-        <article class="panel"><div class="panel-header"><div><h2>Cash composition</h2><p>Movement totals for the current open session</p></div></div>${session ? `<div class="breakdown-list"><div class="breakdown-row"><span>Opening float</span><strong>${formatMoney(summary.byType["opening-float"] || 0)}</strong></div><div class="breakdown-row"><span>Cash sales</span><strong>${formatMoney(summary.byType.sale || 0)}</strong></div><div class="breakdown-row"><span>Customer payments</span><strong>${formatMoney(summary.byType["customer-payment"] || 0)}</strong></div><div class="breakdown-row"><span>Cash refunds and voids</span><strong>${formatMoney((summary.byType.refund || 0) + (summary.byType.void || 0))}</strong></div><div class="breakdown-row"><span>Purchases and supplier payments</span><strong>${formatMoney((summary.byType.purchase || 0) + (summary.byType["supplier-payment"] || 0))}</strong></div><div class="breakdown-row"><span>Expenses</span><strong>${formatMoney(summary.byType.expense || 0)}</strong></div><div class="breakdown-row"><span>Manual cash movements</span><strong>${formatMoney((summary.byType["cash-in"] || 0) + (summary.byType["cash-out"] || 0))}</strong></div><div class="breakdown-row total"><span>Expected drawer cash</span><strong>${formatMoney(summary.expected)}</strong></div></div>` : emptyState("No open session", "Open a register to begin cash reconciliation.", "register")}</article>
-      </section>
-      <section class="panel"><div class="panel-header"><div><h2>${session ? "Current-session cash movements" : "Register session history"}</h2><p>${session ? "Every change affecting expected physical cash" : "Previous register opening and closing records"}</p></div></div>${session ? cashMovementTable(summary.movements) : registerHistoryTable()}</section>
+    const cashIn = session
+      ? num(summary.byType.sale) +
+        num(summary.byType["customer-payment"]) +
+        num(summary.byType["cash-in"])
+      : 0;
+    const cashOut = session
+      ? Math.abs(
+          num(summary.byType.refund) +
+            num(summary.byType.void) +
+            num(summary.byType.purchase) +
+            num(summary.byType["supplier-payment"]) +
+            num(summary.byType.expense) +
+            num(summary.byType["cash-out"]),
+        )
+      : 0;
+    $("#appView").innerHTML = `<div class="page-stack phase-page register-phase-page">
+      <section class="operations-subhero register-command-hero ${session ? "is-open" : "is-closed"}"><div><span class="eyebrow">Cash control</span><div class="register-command-title"><span class="register-command-icon">${I("register")}</span><div><h2>${session ? "Register is open" : "Open the register to begin"}</h2><p>${session ? `Started ${formatDateTime(session.openedAt)} by ${esc(session.cashier)}.` : "Start a controlled shift before accepting and reconciling physical cash."}</p></div></div><div class="operations-hero-actions">${session ? `<button class="button button-outline" data-action="cash-in">${I("arrowDown")}Cash in</button><button class="button button-outline" data-action="cash-out">${I("arrowUp")}Cash out</button><button class="button button-danger" data-action="close-register">${I("lock")}Close shift</button>` : `<button class="button button-primary" data-action="open-register">${I("register")}Open register</button><button class="button button-outline" data-view="pos">${I("cart")}Go to checkout</button>`}</div></div><aside class="register-balance-card"><span>${session ? "Expected drawer cash" : "Register status"}</span><strong>${session ? formatMoney(summary.expected) : "Closed"}</strong><small>${session ? `${summary.movements.length} recorded movement${summary.movements.length === 1 ? "" : "s"}` : "Cash reconciliation is not active"}</small><div class="register-shift-state ${session ? "ready" : "attention"}">${I(session ? "check" : "warning")}<span>${session ? "Shift protected and auditable" : "Cash sales will not reconcile"}</span></div></aside></section>
+      <section class="operation-metric-strip" aria-label="Register summary">${operationMetric("Opening float", session ? formatMoney(session.openingFloat) : "—", session ? "Starting drawer amount" : "Open a shift to begin", "money", "info")}${operationMetric("Cash received", session ? formatMoney(cashIn) : "—", "Sales, payments and cash in", "arrowDown", "success")}${operationMetric("Cash removed", session ? formatMoney(cashOut) : "—", "Refunds, expenses and cash out", "arrowUp", cashOut ? "warning" : "success")}${operationMetric("Movements", session ? summary.movements.length : state.registerSessions.length, session ? "Current shift records" : "Previous shift records", "activity", "info")}</section>
+      <section class="register-workspace-grid"><article class="panel register-composition-panel"><div class="panel-header"><div><h2>Cash composition</h2><p>${session ? "How the expected drawer balance was calculated" : "Open a register to activate live cash controls"}</p></div>${session ? '<span class="badge success">Live shift</span>' : '<span class="badge">Inactive</span>'}</div>${session ? `<div class="breakdown-list"><div class="breakdown-row"><span>Opening float</span><strong>${formatMoney(summary.byType["opening-float"] || 0)}</strong></div><div class="breakdown-row"><span>Cash sales</span><strong>${formatMoney(summary.byType.sale || 0)}</strong></div><div class="breakdown-row"><span>Customer payments</span><strong>${formatMoney(summary.byType["customer-payment"] || 0)}</strong></div><div class="breakdown-row"><span>Cash refunds and voids</span><strong>${formatMoney((summary.byType.refund || 0) + (summary.byType.void || 0))}</strong></div><div class="breakdown-row"><span>Purchases and supplier payments</span><strong>${formatMoney((summary.byType.purchase || 0) + (summary.byType["supplier-payment"] || 0))}</strong></div><div class="breakdown-row"><span>Expenses</span><strong>${formatMoney(summary.byType.expense || 0)}</strong></div><div class="breakdown-row"><span>Manual cash movements</span><strong>${formatMoney((summary.byType["cash-in"] || 0) + (summary.byType["cash-out"] || 0))}</strong></div><div class="breakdown-row total"><span>Expected drawer cash</span><strong>${formatMoney(summary.expected)}</strong></div></div>` : emptyState("No open session", "Open a register to begin cash reconciliation.", "register")}</article><article class="panel register-guidance-panel"><div class="panel-header"><div><h2>Shift controls</h2><p>Recommended register workflow</p></div></div><ol class="register-step-list"><li class="${session ? "complete" : "current"}"><span>${session ? I("check") : "1"}</span><div><strong>Open shift</strong><small>Record operator and opening float</small></div></li><li class="${session ? "current" : ""}"><span>2</span><div><strong>Operate and record</strong><small>Sales and cash movements update the drawer</small></div></li><li><span>3</span><div><strong>Count and close</strong><small>Compare physical cash with expected cash</small></div></li></ol>${session ? `<div class="register-control-grid"><button data-action="cash-in">${I("arrowDown")}<span><strong>Cash in</strong><small>Add money to drawer</small></span></button><button data-action="cash-out">${I("arrowUp")}<span><strong>Cash out</strong><small>Remove money with reason</small></span></button></div>` : `<button class="button button-primary button-full" data-action="open-register">${I("register")}Start controlled shift</button>`}</article></section>
+      <section class="panel register-movements-panel"><div class="panel-header"><div><h2>${session ? "Current shift activity" : "Register session history"}</h2><p>${session ? "Every event affecting expected physical cash" : "Previous opening and closing records"}</p></div>${session ? `<span class="badge primary">${summary.movements.length} movements</span>` : `<span class="badge primary">${state.registerSessions.length} shifts</span>`}</div><div class="phase-desktop-only">${session ? cashMovementTable(summary.movements) : registerHistoryTable()}</div><div class="phase-mobile-only">${session ? cashMovementCards(summary.movements) : registerHistoryCards()}</div></section>
+      <button class="mobile-sticky-primary ${session ? "danger" : ""}" data-action="${session ? "close-register" : "open-register"}">${I(session ? "lock" : "register")}<span>${session ? `Close shift · ${formatMoney(summary.expected)}` : "Open cash register"}</span></button>
     </div>`;
   }
 
@@ -2741,6 +2829,14 @@
         openCustomerModal(state.customers.find((c) => c.id === id)),
       "view-customer": () => openCustomerDetails(id),
       "customer-payment": () => openCustomerPaymentModal(id),
+      "sales-status": () => {
+        state.salesStatusFilter = ["all", "completed", "returned", "voided"].includes(
+          id,
+        )
+          ? id
+          : "all";
+        renderSales();
+      },
       "view-sale": () => openSaleDetails(id),
       "print-sale": () => printSale(id),
       "download-sale": () => downloadReceiptById(id),
@@ -2764,6 +2860,10 @@
       "open-alert-target": () => openAlertTarget(id),
       "open-alert-settings": () => {
         state.settingsSection = "alerts";
+        navigate("settings");
+      },
+      "open-approval-settings": () => {
+        state.settingsSection = "security";
         navigate("settings");
       },
       "open-register": openRegisterModal,
@@ -4629,6 +4729,7 @@
       "Start a cash-control session for this device",
       `<form data-form="open-register"><div class="form-grid"><div class="field"><label>Cashier / operator name</label><input name="cashier" required placeholder="Enter operator name"></div><div class="field"><label>Opening cash float</label><input type="number" name="openingFloat" min="0" step="0.01" required value="0"></div><div class="field full"><label>Opening note</label><input name="notes" placeholder="Optional shift note"></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-primary">${I("register")}Open register</button></div></form>`,
     );
+    $("#modalCard")?.classList.add("register-workflow-sheet");
   }
   async function saveOpenRegister(form) {
     const data = Object.fromEntries(new FormData(form));
@@ -4658,6 +4759,7 @@
       `Expected drawer cash: ${formatMoney(summary.expected)}`,
       `<form data-form="close-register"><input type="hidden" name="sessionId" value="${session.id}"><div class="notice warning">${I("warning")}<div>Count the physical cash in the drawer. The system will calculate any shortage or overage.</div></div><div class="form-grid" style="margin-top:13px"><div class="field"><label>Expected cash</label><input value="${formatMoney(summary.expected)}" disabled></div><div class="field"><label>Actual counted cash</label><input type="number" name="actualCash" min="0" step="0.01" required></div><div class="field full"><label>Closing notes</label><textarea name="notes"></textarea></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-danger">${I("lock")}Close register</button></div></form>`,
     );
+    $("#modalCard")?.classList.add("register-workflow-sheet");
   }
   async function saveCloseRegister(form) {
     const data = Object.fromEntries(new FormData(form));
@@ -4689,6 +4791,7 @@
       "Manual cash movement for the active register",
       `<form data-form="cash-movement"><input type="hidden" name="type" value="${type}"><div class="form-grid"><div class="field"><label>Amount</label><input type="number" name="amount" min="0.01" step="0.01" required></div><div class="field"><label>Reason</label><input name="note" required placeholder="Explain the movement"></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-primary">Record movement</button></div></form>`,
     );
+    $("#modalCard")?.classList.add("register-workflow-sheet");
   }
   async function saveCashMovement(form) {
     const data = Object.fromEntries(new FormData(form));
@@ -4899,6 +5002,7 @@
       `${pending ? `<div class="notice warning">${I("lock")}<div><strong>${esc(pending.approvalNo)} is awaiting manager approval.</strong><br>No stock or cash has changed yet.</div></div>` : ""}<div class="form-grid three" style="margin-top:${pending ? "13px" : "0"}"><div class="notice info"><div><strong>Customer</strong><br>${esc(sale.customerName || customerName(sale.customerId))}</div></div><div class="notice info"><div><strong>Payment</strong><br>${esc(paymentLabel(sale.paymentMethod))}</div></div><div class="notice info"><div><strong>Status</strong><br>${statusBadge(sale.status)}</div></div></div><div class="table-wrap" style="margin-top:13px"><table class="data-table"><thead><tr><th>Product</th><th>Qty</th><th>Returned</th><th>Unit price</th><th>Total</th></tr></thead><tbody>${sale.items.map((i) => `<tr><td><strong>${esc(i.name)}</strong></td><td>${num(i.quantity)}</td><td>${num(i.returnedQty)}</td><td>${formatMoney(i.unitPrice)}</td><td>${formatMoney(i.lineTotal || num(i.quantity) * num(i.unitPrice))}</td></tr>`).join("")}</tbody></table></div><div class="totals-box"><div class="summary-row"><span>Subtotal</span><strong>${formatMoney(sale.subtotal)}</strong></div><div class="summary-row"><span>Discount</span><strong>${formatMoney(sale.discount)}</strong></div><div class="summary-row"><span>Tax</span><strong>${formatMoney(sale.tax)}</strong></div><div class="summary-row total"><span>Total</span><strong>${formatMoney(sale.total)}</strong></div></div><div class="form-actions receipt-detail-actions"><button class="button button-outline" data-action="print-sale" data-id="${sale.id}">${I("print")}Print</button><button class="button button-outline" data-action="download-sale" data-id="${sale.id}">${I("download")}Download</button><button class="button button-outline" data-action="share-sale" data-id="${sale.id}">${I("share")}Share</button>${canReturn ? `<button class="button button-warning" data-action="return-sale" data-id="${sale.id}">${I("return")}Request return</button>` : ""}${canVoid ? `<button class="button button-danger" data-action="request-void" data-id="${sale.id}">${I("close")}Request void</button>` : ""}<button class="button button-primary" data-action="close-modal">Close</button></div>`,
       true,
     );
+    $("#modalCard")?.classList.add("receipt-detail-sheet");
   }
   function openReturnModal(id) {
     const sale = state.sales.find((s) => s.id === id);
@@ -4919,6 +5023,7 @@
         )}</tbody></table></div><div class="form-grid" style="margin-top:13px"><div class="field"><label>Requested by</label><input name="requestedBy" required value="${esc(currentOperator())}"></div><div class="field"><label>Refund method</label><select name="refundMethod"><option value="cash">Cash</option><option value="mobile-money">Mobile Money</option><option value="card">Card</option>${sale.customerId ? '<option value="credit-account">Reduce customer account</option>' : ""}</select></div><div class="field"><label>Reason</label><select name="reason"><option>Customer changed mind</option><option>Damaged product</option><option>Wrong product</option><option>Expired product</option><option>Pricing error</option><option>Other</option></select></div><div class="field full"><label>Notes${settingEnabled("requireReturnNotes", true) ? " *" : ""}</label><input name="notes" ${settingEnabled("requireReturnNotes", true) ? "required" : ""} placeholder="Explain the request for the reviewer"></div></div><div class="totals-box" id="returnTotals"><div class="summary-row total"><span>Refund total</span><strong>${formatMoney(0)}</strong></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="set-return-all" data-id="${sale.id}">Return all available</button><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-warning">${I("lock")}Submit for approval</button></div></form>`,
       true,
     );
+    $("#modalCard")?.classList.add("controlled-workflow-sheet");
   }
   function updateReturnTotals() {
     let total = 0;
@@ -5014,6 +5119,7 @@
       `<form data-form="void-request"><input type="hidden" name="saleId" value="${sale.id}"><div class="notice danger">${I("warning")}<div><strong>Voiding reverses the complete transaction.</strong><br>After manager approval, sold stock is restored, customer credit is reversed and cash is removed from the register record.</div></div><div class="form-grid" style="margin-top:13px"><div class="field"><label>Requested by</label><input name="requestedBy" required value="${esc(currentOperator())}"></div><div class="field"><label>Reason</label><select name="reason"><option>Sale entered by mistake</option><option>Duplicate transaction</option><option>Payment failed</option><option>Customer cancelled immediately</option><option>Wrong customer selected</option><option>Other</option></select></div><div class="field full"><label>Detailed notes${settingEnabled("requireVoidNotes", true) ? " *" : ""}</label><textarea name="notes" ${settingEnabled("requireVoidNotes", true) ? "required" : ""} placeholder="Explain why the entire sale must be voided"></textarea></div></div><div class="totals-box"><div class="summary-row"><span>Items restored after approval</span><strong>${sale.items.reduce((sum, item) => sum + num(item.quantity), 0)}</strong></div><div class="summary-row total"><span>Transaction value</span><strong>${formatMoney(sale.total)}</strong></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-danger">${I("lock")}Submit void request</button></div></form>`,
       true,
     );
+    $("#modalCard")?.classList.add("controlled-workflow-sheet");
   }
 
   async function saveVoidRequest(form) {
@@ -5069,6 +5175,7 @@
       `<form data-form="approval-review"><input type="hidden" name="approvalId" value="${approval.id}"><input type="hidden" name="decision" value="${approving ? "approve" : "reject"}"><div class="approval-summary ${approving ? "approve" : "reject"}"><div><span>Request type</span><strong>${esc(approval.type.toUpperCase())}</strong></div><div><span>Amount</span><strong>${formatMoney(approval.amount)}</strong></div><div><span>Requested by</span><strong>${esc(approval.requestedBy)}</strong></div></div><div class="notice ${state.business.approvalPinHash ? "info" : "warning"}" style="margin-top:13px">${I(state.business.approvalPinHash ? "lock" : "warning")}<div>${state.business.approvalPinHash ? "Enter the manager PIN to create a verified approval record." : "No approval PIN is configured. Open Settings and create one before reviewing this request."}</div></div><div class="form-grid" style="margin-top:13px"><div class="field"><label>Reviewer name</label><input name="reviewedBy" required value="${esc(state.business.managerName || "Manager")}"></div><div class="field"><label>Manager PIN</label><input name="pin" type="password" inputmode="numeric" minlength="4" maxlength="8" pattern="[0-9]{4,8}" autocomplete="off" required placeholder="4–8 digits"></div><div class="field full"><label>Review note</label><textarea name="reviewNote" placeholder="Optional decision note"></textarea></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button ${approving ? "button-primary" : "button-danger"}" ${state.business.approvalPinHash ? "" : "disabled"}>${I(approving ? "check" : "close")}${approving ? "Approve and process" : "Reject request"}</button></div></form>`,
       true,
     );
+    $("#modalCard")?.classList.add("controlled-workflow-sheet");
   }
 
   async function saveApprovalReview(form) {
