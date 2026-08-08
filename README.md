@@ -1,11 +1,20 @@
-# MTECH Retail POS v4.2.0
+# MTECH Retail POS v4.4.0
 
-MTECH Retail POS is an offline-first, installable point-of-sale and inventory system for independent shops. Version 4.2 adds a split-stage mobile checkout, personalized app colours and accessibility controls, a setup-first installation flow, and configurable checkout and alert sounds to the barcode scanning, branded receipts, controlled returns and voids, alerts, expenses, purchasing, and reporting already available in version 4.1.
+MTECH Retail POS is an offline-first, installable point-of-sale and inventory system for independent shops. Version 4.4 completes the responsive frontend modernization across every operational page while preserving split-stage checkout, custom colours, accessibility controls, installation readiness, sounds, barcode scanning, receipts, controlled returns, alerts, expenses, purchasing, reporting, and IndexedDB workflows.
 
 ## Project links
 
 - Production app: https://mtech-smart-pos.vercel.app/
 - GitHub repository: https://github.com/Micjeal/MTECH-Smart-pos
+
+## Version 4.4 complete frontend modernization
+
+- Turns Dashboard into a focused daily command centre with register readiness, priority alerts, sales performance, quick operations, and responsive receipt cards.
+- Adds functional All, Completed, Returned, and Voided stages to Sales & Returns, plus mobile receipt cards and approval records designed for touch.
+- Converts Cash Register into a guided Open → Operate → Close workflow with cash composition, shift controls, movement timelines, and a sticky mobile action.
+- Applies shared operational heroes, metric strips, touch controls, workflow guidance, responsive cards, empty states, and safe-area-aware actions to Products, Inventory, Stock Count, Purchases, Customers, Suppliers, Expenses, Alerts, Reports, and Settings.
+- Adds catalogue value and stock-health summaries, controlled stock-count guidance, purchasing pipeline visibility, customer-credit monitoring, supplier-obligation summaries, and a stronger decision-focused reporting workspace.
+- Keeps the selected app colours, large text, high contrast, reduced motion, and larger touch targets active throughout the new screens.
 
 ## Version 4.2 mobile experience
 
@@ -147,6 +156,7 @@ vercel --prod --yes
 ## Verification
 
 - JavaScript syntax, service worker, manifest JSON, and CSS parsing validated.
+- Complete frontend navigation and primary modal workflows validated across Products, Inventory, Stock Count, Purchases, Customers, Suppliers, Expenses, Alerts, Reports, and Settings.
 - IndexedDB v6 workflows tested for sales, controlled returns, voids, approval rejection, purchase orders, partial receiving, expense approvals, payments, controlled voiding, alert-state persistence, backup coverage, and optional negative stock.
 - All eight settings sections tested for navigation, persistence, theme/accessibility changes, immediate density changes, receipt controls, inventory controls, alert and expense controls, PIN hashing, and error-free POS rendering.
 - Alerts and expense management tested end-to-end from acknowledgement through threshold approval and final payment.

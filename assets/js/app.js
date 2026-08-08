@@ -28,7 +28,7 @@
       .slice(0, 10);
   const MAX_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
   const TARGET_PRODUCT_IMAGE_BYTES = 520 * 1024;
-  const APP_VERSION = "4.2.0";
+  const APP_VERSION = "4.4.0";
   const DEFAULT_PRODUCT_IMAGES = {
     "prod-001": "/assets/images/products/sugar-1kg.webp",
     "prod-003": "/assets/images/products/mineral-water-500ml.webp",
@@ -231,6 +231,7 @@
     expenseStatusFilter: "all",
     expenseCategoryFilter: "all",
     expensePeriodFilter: "month",
+    salesStatusFilter: "all",
     alertSeverityFilter: "all",
     alertCategoryFilter: "all",
     alertStatusFilter: "open",
@@ -1314,6 +1315,78 @@
   function statCard(label, value, iconName, detail = "", tone = "") {
     return `<article class="stat-card"><div class="stat-copy"><span>${esc(label)}</span><strong>${value}</strong><small>${esc(detail)}</small></div><div class="stat-icon ${tone}">${I(iconName)}</div></article>`;
   }
+  function operationMetric(label, value, detail, iconName, tone = "") {
+    return `<article class="operation-metric ${tone}"><div class="operation-metric-icon">${I(iconName)}</div><div><span>${esc(label)}</span><strong>${value}</strong><small>${esc(detail)}</small></div></article>`;
+  }
+  function workspaceHero({
+    eyebrow,
+    title,
+    description,
+    actions = "",
+    spotlightLabel,
+    spotlightValue,
+    spotlightDetail,
+    iconName = "activity",
+    tone = "",
+  }) {
+    return `<section class="operations-subhero workspace-operations-hero ${tone}">
+      <div class="workspace-hero-copy"><span class="eyebrow">${esc(eyebrow)}</span><h2>${esc(title)}</h2><p>${esc(description)}</p>${actions ? `<div class="operations-hero-actions">${actions}</div>` : ""}</div>
+      <aside class="workspace-spotlight"><span class="workspace-spotlight-icon">${I(iconName)}</span><div><span>${esc(spotlightLabel)}</span><strong>${spotlightValue}</strong><small>${esc(spotlightDetail)}</small></div></aside>
+    </section>`;
+  }
+  function transactionCard(sale, compact = false) {
+    const itemCount = (sale.items || []).reduce(
+      (sum, item) => sum + num(item.quantity),
+      0,
+    );
+    const pending = pendingApproval(sale.id);
+    const hasReturn = state.returns.some((item) => item.saleId === sale.id);
+    const canReturn =
+      !compact &&
+      !["refunded", "voided"].includes(sale.status) &&
+      !pending;
+    const canVoid =
+      !compact && sale.status === "completed" && !hasReturn && !pending;
+    return `<article class="transaction-card" data-status="${esc(sale.status)}">
+      <div class="transaction-card-head"><div class="transaction-receipt-icon">${I("receipt")}</div><div class="transaction-card-title"><strong>${esc(sale.receiptNo)}</strong><span>${formatDateTime(sale.createdAt)}</span></div>${statusBadge(sale.status)}</div>
+      <div class="transaction-card-body"><div><span>Customer</span><strong>${esc(sale.customerName || customerName(sale.customerId))}</strong></div><div class="transaction-total"><span>Total</span><strong>${formatMoney(sale.total)}</strong></div></div>
+      ${pending ? `<div class="transaction-pending">${I("lock")}<span>${esc(pending.type)} approval pending</span></div>` : ""}
+      <div class="transaction-card-foot"><div><span>${esc(paymentLabel(sale.paymentMethod))}</span><span>${itemCount} item${itemCount === 1 ? "" : "s"}</span></div><div class="transaction-actions"><button class="mini-button labelled" data-action="view-sale" data-id="${esc(sale.id)}">${I("eye")}<span>Open</span></button>${compact ? "" : `<button class="mini-button labelled" data-action="share-sale" data-id="${esc(sale.id)}">${I("share")}<span>Share</span></button>${canReturn ? `<button class="mini-button labelled" data-action="return-sale" data-id="${esc(sale.id)}">${I("return")}<span>Return</span></button>` : ""}${canVoid ? `<button class="mini-button danger" data-action="request-void" data-id="${esc(sale.id)}" aria-label="Request void">${I("close")}</button>` : ""}`}</div></div>
+    </article>`;
+  }
+  function approvalQueueCard(approval) {
+    return `<article class="approval-queue-card"><div class="approval-queue-head"><div><span>${esc(approval.approvalNo)}</span><strong>${esc(approval.type)} · ${esc(approval.receiptNo)}</strong></div>${statusBadge(approval.status)}</div><p>${esc(approval.reason || "No reason supplied")}</p><div class="approval-queue-meta"><span>${formatMoney(approval.amount)}</span><span>${esc(approval.requestedBy || "Unknown operator")}</span><span>${formatDateTime(approval.requestedAt)}</span></div><div class="approval-queue-actions"><button class="button button-outline" data-action="view-approval" data-id="${esc(approval.id)}">${I("eye")}Review record</button>${approval.status === "pending" ? `<button class="button button-primary" data-action="review-approval" data-decision="approve" data-id="${esc(approval.id)}">${I("check")}Approve</button><button class="icon-button danger-text" data-action="review-approval" data-decision="reject" data-id="${esc(approval.id)}" aria-label="Reject approval">${I("close")}</button>` : ""}</div></article>`;
+  }
+  function cashMovementCards(movements) {
+    if (!movements.length)
+      return emptyState(
+        "No cash movements yet",
+        "Opening float, cash sales and drawer adjustments will appear here.",
+        "register",
+      );
+    return `<div class="cash-movement-timeline">${movements
+      .slice()
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map(
+        (movement) =>
+          `<article class="cash-movement-card ${num(movement.amount) >= 0 ? "positive" : "negative"}"><div class="cash-movement-icon">${I(num(movement.amount) >= 0 ? "arrowDown" : "arrowUp")}</div><div class="cash-movement-copy"><strong>${esc(String(movement.type || "movement").replaceAll("-", " "))}</strong><span>${esc(movement.note || movement.referenceType || "Cash register activity")}</span><small>${formatDateTime(movement.createdAt)}</small></div><strong class="cash-movement-amount">${num(movement.amount) >= 0 ? "+ " : ""}${formatMoney(movement.amount)}</strong></article>`,
+      )
+      .join("")}</div>`;
+  }
+  function registerHistoryCards() {
+    if (!state.registerSessions.length)
+      return emptyState(
+        "No register history",
+        "Open and close a register to create shift records.",
+        "register",
+      );
+    return `<div class="register-history-cards">${state.registerSessions
+      .map(
+        (session) =>
+          `<article class="register-history-card"><div><strong>${esc(session.cashier)}</strong><span>${formatDateTime(session.openedAt)}</span></div>${statusBadge(session.status)}<dl><div><dt>Opening</dt><dd>${formatMoney(session.openingFloat)}</dd></div><div><dt>Expected</dt><dd>${formatMoney(session.expectedCash)}</dd></div><div><dt>Counted</dt><dd>${formatMoney(session.actualCash)}</dd></div><div><dt>Difference</dt><dd class="${Math.abs(num(session.difference)) > 0.01 ? "danger-text" : ""}">${formatMoney(session.difference)}</dd></div></dl></article>`,
+      )
+      .join("")}</div>`;
+  }
   function isToday(value) {
     const d = new Date(value),
       n = new Date();
@@ -1405,20 +1478,29 @@
       (request) => request.status === "pending",
     ).length;
     const priorityAlerts = activeSystemAlerts();
+    const session = openSession();
     const hero = settingEnabled("showDashboardHero", true)
-      ? `<section class="dashboard-hero">
-        <div class="dashboard-hero-copy"><span class="eyebrow">${esc(state.business.businessName)} · command centre</span><h2>${greeting}. Your shop is ready.</h2><p>Track sales, protect stock and serve customers from one offline-ready workspace.</p><div class="dashboard-hero-actions"><button class="button hero-primary" data-view="pos">${I("cart")}Start a sale</button><button class="button hero-secondary" data-action="new-product">${I("plus")}Add product</button></div></div>
-        <div class="hero-snapshot"><div><span>This month</span><strong>${formatMoney(monthRevenue)}</strong><small>Sales revenue</small></div><div><span>Inventory value</span><strong>${formatMoney(inventoryRetailValue)}</strong><small>At retail price</small></div><div><span>Attention</span><strong>${priorityAlerts.length}</strong><small>${priorityAlerts.length === 1 ? "open operational alert" : "open operational alerts"}</small></div></div>
+      ? `<section class="dashboard-hero operations-hero">
+        <div class="dashboard-hero-copy"><span class="eyebrow">Today · retail command centre</span><h2>${greeting}. Your shop is ready.</h2><p>Start the next sale, monitor cash and deal with important risks from one focused workspace.</p><div class="dashboard-hero-actions"><button class="button hero-primary" data-view="pos">${I("cart")}Start new sale</button><button class="button hero-secondary" data-action="new-expense">${I("wallet")}Add expense</button></div><div class="operations-status-row"><button data-view="register" class="operations-status-pill ${session ? "ready" : "attention"}"><span>${I("register")}</span><span><strong>${session ? "Register open" : "Register closed"}</strong><small>${session ? esc(session.cashier) : "Open before cash sales"}</small></span>${I("arrowRight")}</button><button data-view="alerts" class="operations-status-pill ${priorityAlerts.length ? "attention" : "ready"}"><span>${I(priorityAlerts.length ? "bell" : "check")}</span><span><strong>${priorityAlerts.length} open alert${priorityAlerts.length === 1 ? "" : "s"}</strong><small>${pendingApprovals ? `${pendingApprovals} approval${pendingApprovals === 1 ? "" : "s"} waiting` : priorityAlerts.length ? "Review the highest-priority items" : "Operations currently stable"}</small></span>${I("arrowRight")}</button></div></div>
+        <aside class="dashboard-today-card"><span>Today’s net sales</span><strong>${formatMoney(todayRevenue)}</strong><small>${todaySales.length} completed transaction${todaySales.length === 1 ? "" : "s"}</small><div><span><small>Returns</small><strong>${formatMoney(todayReturns)}</strong></span><span><small>Expenses</small><strong>${formatMoney(todayExpenses)}</strong></span></div><button class="text-button" data-view="reports">View performance ${I("arrowRight")}</button></aside>
       </section>`
       : "";
-    $("#appView").innerHTML = `<div class="page-stack">
+    $("#appView").innerHTML = `<div class="page-stack phase-page dashboard-phase-page">
       ${hero}
-      <section class="stats-grid">
-        ${statCard("Today’s net sales", formatMoney(todayRevenue), "money", `${todaySales.length} completed transactions`, "success")}
-        ${statCard("Estimated profit", formatMoney(todayRevenue - todayCost - todayExpenses), "chart", "Sales less cost and expenses", "info")}
-        ${statCard("Low-stock products", lowStockAlertsEnabled ? lowStock.length : "Off", "warning", lowStockAlertsEnabled ? (lowStock.length ? "Requires attention" : "Stock levels are healthy") : `${lowStockRecords.length} products currently below level`, lowStockAlertsEnabled && lowStock.length ? "warning" : "success")}
-        ${statCard("Customer credit due", formatMoney(receivables), "credit", `${state.customers.filter((c) => num(c.balance) > 0).length} customer accounts`, receivables ? "warning" : "success")}
+      <section class="operation-metric-strip" aria-label="Business summary">
+        ${operationMetric("Estimated profit", formatMoney(todayRevenue - todayCost - todayExpenses), "Today after cost and expenses", "chart", "success")}
+        ${operationMetric("This month", formatMoney(monthRevenue), "Net sales revenue", "calendar", "info")}
+        ${operationMetric("Low stock", lowStockAlertsEnabled ? lowStock.length : "Off", lowStockAlertsEnabled ? (lowStock.length ? "Products need attention" : "Stock levels are healthy") : `${lowStockRecords.length} below level`, "warning", lowStockAlertsEnabled && lowStock.length ? "warning" : "success")}
+        ${operationMetric("Credit due", formatMoney(receivables), `${state.customers.filter((customer) => num(customer.balance) > 0).length} customer accounts`, "credit", receivables ? "warning" : "success")}
       </section>
+      <section class="dashboard-quick-section"><div class="section-heading-inline"><div><span class="eyebrow">Quick actions</span><h2>What do you need to do?</h2></div><small>Designed for one-handed mobile use</small></div><div class="quick-action-grid phase-quick-actions">
+        ${quickCard("pos", "cart", "New sale", "Open checkout")}
+        ${quickCardAction("new-expense", "wallet", "Add expense", "Record a cost")}
+        ${quickCardAction("new-purchase", "truck", "Receive stock", "Supplier delivery")}
+        ${quickCard("register", "register", session ? "Register" : "Open register", "Control cash")}
+        ${quickCardAction("new-product", "package", "Add product", "Catalogue item")}
+        ${quickCardAction("new-customer", "users", "Add customer", "Credit profile")}
+      </div></section>
       <section class="dashboard-grid">
         <article class="panel"><div class="panel-header"><div><h2>Sales trend</h2><p>Completed sales during the last seven days</p></div><button class="text-button" data-view="reports">Open reports</button></div>${renderSevenDayChart()}</article>
         <article class="panel"><div class="panel-header"><div><h2>Priority alerts</h2><p>Highest-impact actions across the business</p></div><button class="text-button" data-view="alerts">Open alerts centre</button></div>
@@ -1439,19 +1521,7 @@
           }
         </article>
       </section>
-      <section class="dashboard-grid equal">
-        <article class="panel"><div class="panel-header"><div><h2>Recent sales</h2><p>Latest completed and returned transactions</p></div><button class="text-button" data-view="sales">View all</button></div>
-          ${recentSales.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Receipt</th><th>Customer</th><th>Total</th><th>Status</th><th>Time</th></tr></thead><tbody>${recentSales.map((sale) => `<tr><td><strong>${esc(sale.receiptNo)}</strong></td><td>${esc(sale.customerName || customerName(sale.customerId))}</td><td><strong>${formatMoney(sale.total)}</strong></td><td>${statusBadge(sale.status)}</td><td>${formatDateTime(sale.createdAt)}</td></tr>`).join("")}</tbody></table></div>` : emptyState("No sales yet", "Start a new sale to populate your dashboard.", "receipt")}
-        </article>
-        <article class="panel"><div class="panel-header"><div><h2>Quick operations</h2><p>Common daily retail tasks</p></div></div><div class="quick-action-grid">
-          ${quickCard("pos", "cart", "New sale", "Open the checkout terminal")}
-          ${quickCardAction("new-product", "package", "Add product", "Create a product and barcode")}
-          ${quickCardAction("new-purchase", "truck", "Receive stock", "Record supplier delivery")}
-          ${quickCard("register", "register", openSession() ? "Register details" : "Open register", "Control the cash drawer")}
-          ${quickCardAction("new-customer", "users", "Add customer", "Set up a credit account")}
-          ${quickCardAction("export-backup", "database", "Back up data", "Download a complete backup")}
-        </div></article>
-      </section>
+      <section class="panel dashboard-transactions-panel"><div class="panel-header"><div><h2>Recent sales</h2><p>Latest receipts, payments and return status</p></div><button class="text-button" data-view="sales">View all sales</button></div>${recentSales.length ? `<div class="transaction-card-list dashboard-transaction-list">${recentSales.map((sale) => transactionCard(sale, true)).join("")}</div>` : emptyState("No sales yet", "Start a new sale to populate your dashboard.", "receipt")}</section>
       <section class="panel"><div class="panel-header"><div><h2>Recent activity</h2><p>Operational audit trail on this device</p></div></div>
         ${
           state.activityLog.length
@@ -1802,17 +1872,30 @@
       (sum, product) => sum + num(product.stock) * num(product.sellingPrice),
       0,
     );
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="catalogue-overview">
-        <div><span>${I("package")} Products</span><strong>${state.products.length}</strong><small>${state.categories.length} categories</small></div>
-        <div class="${lowStock ? "attention" : ""}"><span>${I("warning")} Low stock</span><strong>${lowStock}</strong><small>${outOfStock} out of stock</small></div>
-        <div><span>${I("image")} With images</span><strong>${imageCount}</strong><small>${state.products.length ? Math.round((imageCount / state.products.length) * 100) : 0}% catalogue coverage</small></div>
-        <div><span>${I("chart")} Retail value</span><strong>${formatMoney(retailValue)}</strong><small>Current stock at selling price</small></div>
+    $("#appView").innerHTML = `<div class="page-stack phase-page products-phase-page">
+      ${workspaceHero({
+        eyebrow: "Catalogue control",
+        title: "Keep every product ready to sell.",
+        description:
+          "Manage product identity, images, barcodes, pricing and stock visibility from one focused catalogue.",
+        actions: `<button class="button button-primary" data-action="new-product">${I("plus")}Add product</button><button class="button button-outline" data-action="manage-categories">${I("tag")}Manage categories</button>`,
+        spotlightLabel: "Current retail value",
+        spotlightValue: formatMoney(retailValue),
+        spotlightDetail: `${state.products.length} products across ${state.categories.length} categories`,
+        iconName: "package",
+        tone: lowStock ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Products", state.products.length, `${state.categories.length} active catalogue categories`, "package", "info")}
+        ${operationMetric("Low stock", lowStock, `${outOfStock} product${outOfStock === 1 ? "" : "s"} currently out of stock`, "warning", lowStock ? "warning" : "success")}
+        ${operationMetric("Product images", imageCount, `${state.products.length ? Math.round((imageCount / state.products.length) * 100) : 0}% catalogue image coverage`, "image", "success")}
+        ${operationMetric("Shown now", products.length, "Products matching the active filters", "list", "info")}
       </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Product catalogue</h2><p>Manage product information, images, pricing and stock visibility</p></div><div class="toolbar-actions"><div class="view-switch" aria-label="Catalogue layout"><button class="${state.productView === "table" ? "active" : ""}" data-action="product-view" data-mode="table" title="Table view">${I("list")}</button><button class="${state.productView === "grid" ? "active" : ""}" data-action="product-view" data-mode="grid" title="Grid view">${I("grid")}</button></div><button class="button button-outline" data-action="manage-categories">${I("tag")}Categories</button><button class="button button-primary" data-action="new-product">${I("plus")}Add product</button></div></div>
       <section class="panel catalogue-panel"><div class="panel-header catalogue-filter-header"><div class="catalogue-controls"><div class="search-box">${I("search")}<input data-filter="products" value="${esc(state.filters.products)}" placeholder="Search name, SKU, barcode or description"></div><select class="select-control" id="productCategoryFilter" aria-label="Filter by category"><option value="">All categories</option>${state.categories.map((category) => `<option value="${category.id}" ${state.productCategoryFilter === category.id ? "selected" : ""}>${esc(category.name)}</option>`).join("")}</select><select class="select-control" id="productStatusFilter" aria-label="Filter by status"><option value="all" ${state.productStatusFilter === "all" ? "selected" : ""}>All statuses</option><option value="favorites" ${state.productStatusFilter === "favorites" ? "selected" : ""}>Favorites</option><option value="low" ${state.productStatusFilter === "low" ? "selected" : ""}>Low stock</option><option value="out" ${state.productStatusFilter === "out" ? "selected" : ""}>Out of stock</option><option value="expiry" ${state.productStatusFilter === "expiry" ? "selected" : ""}>Expiry attention</option><option value="inactive" ${state.productStatusFilter === "inactive" ? "selected" : ""}>Inactive</option><option value="with-image" ${state.productStatusFilter === "with-image" ? "selected" : ""}>With image</option></select><select class="select-control" id="productSort" aria-label="Sort products"><option value="name-asc" ${state.productSort === "name-asc" ? "selected" : ""}>Name A–Z</option><option value="newest" ${state.productSort === "newest" ? "selected" : ""}>Newest first</option><option value="stock-asc" ${state.productSort === "stock-asc" ? "selected" : ""}>Lowest stock</option><option value="price-desc" ${state.productSort === "price-desc" ? "selected" : ""}>Highest price</option><option value="price-asc" ${state.productSort === "price-asc" ? "selected" : ""}>Lowest price</option></select></div><span class="badge primary">${products.length} shown</span></div>
         ${products.length ? (state.productView === "grid" ? `<div class="catalogue-grid">${products.map(productCatalogueCard).join("")}</div>` : `<div class="table-wrap mobile-cards"><table class="data-table product-table"><thead><tr><th>Product</th><th>SKU / Barcode</th><th>Category</th><th>Cost</th><th>Price</th><th>Stock</th><th>Status</th><th></th></tr></thead><tbody>${products.map(productRow).join("")}</tbody></table></div>`) : emptyState("No products found", "Change the filters or add a new product to the catalogue.", "package")}
       </section>
+      <button class="mobile-sticky-primary" data-action="new-product">${I("plus")}<span>Add product</span></button>
     </div>`;
   }
 
@@ -1997,17 +2080,31 @@
       (sum, p) => sum + num(p.stock) * num(p.sellingPrice),
       0,
     );
+    const unitsInStock = products.reduce((sum, product) => sum + num(product.stock), 0);
     const low = products.filter((p) => num(p.stock) <= num(p.reorderLevel));
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="stats-grid">${statCard(
-        "Units in stock",
-        products.reduce((s, p) => s + num(p.stock), 0),
-        "boxes",
-        "Across tracked products",
-        "info",
-      )}${statCard("Cost valuation", formatMoney(valueCost), "money", "Based on latest cost prices", "primary")}${statCard("Retail valuation", formatMoney(valueRetail), "chart", "Potential selling value", "success")}${statCard("Low-stock alerts", low.length, "warning", "At or below reorder level", low.length ? "warning" : "success")}</section>
+    const outOfStock = low.filter((product) => num(product.stock) <= 0).length;
+    $("#appView").innerHTML = `<div class="page-stack phase-page inventory-phase-page">
+      ${workspaceHero({
+        eyebrow: "Inventory operations",
+        title: "Know what is available before the next sale.",
+        description:
+          "Monitor live quantities, trace every movement and resolve replenishment risks before they interrupt checkout.",
+        actions: `<button class="button button-primary" data-action="adjust-stock">${I("plus")}Adjust stock</button><button class="button button-outline" data-view="stock-count">${I("clipboard")}Start physical count</button>`,
+        spotlightLabel: "Stock at retail value",
+        spotlightValue: formatMoney(valueRetail),
+        spotlightDetail: `${products.length} tracked products · ${low.length} need attention`,
+        iconName: "boxes",
+        tone: low.length ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Units in stock", unitsInStock, "Across all tracked catalogue products", "boxes", "info")}
+        ${operationMetric("Cost valuation", formatMoney(valueCost), "Current stock at latest purchase cost", "money", "info")}
+        ${operationMetric("Low stock", low.length, `${outOfStock} product${outOfStock === 1 ? "" : "s"} out of stock`, "warning", low.length ? "warning" : "success")}
+        ${operationMetric("Movement records", state.stockMovements.length, "Purchases, sales, returns and adjustments", "activity", "success")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Inventory control</h2><p>Stock levels and every movement recorded on this device</p></div><div class="toolbar-actions"><button class="button button-outline" data-view="stock-count">${I("clipboard")}Start count</button><button class="button button-primary" data-action="adjust-stock">${I("plus")}Adjust stock</button></div></div>
-      <section class="panel"><div class="tabs"><button class="tab-button active" data-action="inventory-tab" data-tab="levels">Stock levels</button><button class="tab-button" data-action="inventory-tab" data-tab="movements">Movement history</button><button class="tab-button" data-action="inventory-tab" data-tab="alerts">Low stock</button></div><div id="inventoryTabBody">${inventoryLevelsHTML(products)}</div></section>
+      <section class="panel phase-tab-panel"><div class="tabs operations-tabs"><button class="tab-button active" data-action="inventory-tab" data-tab="levels">${I("boxes")}Stock levels</button><button class="tab-button" data-action="inventory-tab" data-tab="movements">${I("activity")}Movement history</button><button class="tab-button" data-action="inventory-tab" data-tab="alerts">${I("warning")}Low stock</button></div><div id="inventoryTabBody">${inventoryLevelsHTML(products)}</div></section>
+      <button class="mobile-sticky-primary" data-action="adjust-stock">${I("plus")}<span>Adjust stock</span></button>
     </div>`;
   }
 
@@ -2053,10 +2150,41 @@
 
   function renderStockCount() {
     const counts = state.stockCounts;
-    $("#appView").innerHTML = `<div class="page-stack">
+    const completed = counts.filter((count) => count.status === "completed");
+    const drafts = counts.filter((count) => count.status === "draft");
+    const latest = counts[0];
+    const latestDifferences = latest?.items?.filter(
+      (item) => num(item.difference) !== 0,
+    ).length || 0;
+    const totalCountedProducts = completed.reduce(
+      (sum, count) => sum + (count.items?.length || 0),
+      0,
+    );
+    $("#appView").innerHTML = `<div class="page-stack phase-page stock-count-phase-page">
+      ${workspaceHero({
+        eyebrow: "Inventory assurance",
+        title: "Count, compare and correct stock with confidence.",
+        description:
+          "Run controlled physical counts, review every variance and create a complete stock movement audit trail.",
+        actions: `<button class="button button-primary" data-action="new-stock-count">${I("plus")}New stock count</button><button class="button button-outline" data-view="inventory">${I("boxes")}Return to inventory</button>`,
+        spotlightLabel: latest ? "Latest count" : "Count readiness",
+        spotlightValue: latest ? esc(latest.countNo) : "Ready",
+        spotlightDetail: latest
+          ? `${latestDifferences} difference${latestDifferences === 1 ? "" : "s"} · ${String(latest.status || "draft").replaceAll("-", " ")}`
+          : "Start with the products currently on hand",
+        iconName: "clipboard",
+        tone: drafts.length ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Completed counts", completed.length, "Counts applied to system inventory", "check", "success")}
+        ${operationMetric("Draft counts", drafts.length, "Counts that can still be continued", "edit", drafts.length ? "warning" : "success")}
+        ${operationMetric("Products verified", totalCountedProducts, "Total product lines across completed counts", "package", "info")}
+        ${operationMetric("Latest differences", latestDifferences, "Variance lines in the most recent count", "activity", latestDifferences ? "warning" : "success")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Physical stock counts</h2><p>Use stock counts to correct shrinkage, damage and recording differences</p></div><button class="button button-primary" data-action="new-stock-count">${I("plus")}New stock count</button></div>
-      <section class="notice info">${I("info")}<div><strong>Recommended control:</strong> count stock when sales are paused. Completing a count adjusts system stock and writes an audit movement for every difference.</div></section>
+      <section class="count-guidance panel"><div class="count-guidance-heading"><span>${I("info")}</span><div><strong>Run a controlled count</strong><p>Pause sales during the count so system quantities do not change while staff are checking shelves.</p></div></div><ol class="count-workflow"><li><span>1</span><div><strong>Select products</strong><small>Choose a full or targeted product list.</small></div></li><li><span>2</span><div><strong>Enter physical quantities</strong><small>Record what staff can verify on the shelf.</small></div></li><li><span>3</span><div><strong>Review and apply</strong><small>Approve differences and write the audit movements.</small></div></li></ol></section>
       <section class="panel"><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Count</th><th>Started</th><th>Completed</th><th>Products</th><th>Differences</th><th>Status</th><th></th></tr></thead><tbody>${counts.length ? counts.map((count) => `<tr><td data-label="Count"><strong>${esc(count.countNo)}</strong></td><td data-label="Started">${formatDateTime(count.startedAt)}</td><td data-label="Completed">${formatDateTime(count.completedAt)}</td><td data-label="Products">${count.items?.length || 0}</td><td data-label="Differences">${count.items?.filter((item) => num(item.difference) !== 0).length || 0}</td><td data-label="Status">${statusBadge(count.status)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-stock-count" data-id="${count.id}">${I("eye")}</button>${count.status === "draft" ? `<button class="mini-button" data-action="continue-stock-count" data-id="${count.id}">${I("edit")}</button>` : ""}</div></td></tr>`).join("") : `<tr><td colspan="7">${emptyState("No stock counts", "Start a physical count to verify inventory accuracy.", "clipboard")}</td></tr>`}</tbody></table></div></section>
+      <button class="mobile-sticky-primary" data-action="new-stock-count">${I("plus")}<span>New stock count</span></button>
     </div>`;
   }
 
@@ -2095,8 +2223,26 @@
         ),
       0,
     );
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="stats-grid">${statCard("Open purchase orders", openOrders.length, "clipboard", "Draft, ordered and partially received", "primary")}${statCard("Value still on order", formatMoney(valueOnOrder), "money", "Remaining supplier order value", "info")}${statCard("Stock received", formatMoney(total), "truck", "Value of recorded deliveries", "success")}${statCard("Supplier balances", formatMoney(due), "credit", `${state.suppliers.filter((s) => num(s.balance) > 0).length} suppliers owed`, "warning")}</section>
+    const suppliersOwed = state.suppliers.filter((supplier) => num(supplier.balance) > 0).length;
+    $("#appView").innerHTML = `<div class="page-stack phase-page purchases-phase-page">
+      ${workspaceHero({
+        eyebrow: "Supply operations",
+        title: "Move every supplier order from request to shelf.",
+        description:
+          "Create purchase orders, monitor delivery progress, receive stock and control supplier balances from one workflow.",
+        actions: `<button class="button button-primary" data-action="new-purchase-order">${I("plus")}New purchase order</button><button class="button button-outline" data-action="new-purchase">${I("truck")}Receive delivery</button>`,
+        spotlightLabel: "Value still on order",
+        spotlightValue: formatMoney(valueOnOrder),
+        spotlightDetail: `${openOrders.length} open order${openOrders.length === 1 ? "" : "s"} across active suppliers`,
+        iconName: "truck",
+        tone: openOrders.length ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Open orders", openOrders.length, "Draft, ordered and partially received", "clipboard", openOrders.length ? "warning" : "success")}
+        ${operationMetric("Received stock", formatMoney(total), "Value of all recorded supplier deliveries", "truck", "success")}
+        ${operationMetric("Supplier balances", formatMoney(due), `${suppliersOwed} supplier${suppliersOwed === 1 ? "" : "s"} currently owed`, "credit", due ? "warning" : "success")}
+        ${operationMetric("Received records", purchases.length, "Deliveries matching the current search", "list", "info")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Purchasing control centre</h2><p>Create supplier orders, track delivery progress and receive stock</p></div><div class="toolbar-actions"><button class="button button-outline" data-action="new-purchase">${I("truck")}Receive without order</button><button class="button button-primary" data-action="new-purchase-order">${I("plus")}New purchase order</button></div></div>
       <section class="panel"><div class="panel-header"><div><h2>Purchase orders</h2><p>Draft, submit and receive supplier orders</p></div><div class="search-box">${I("search")}<input data-filter="purchases" value="${esc(state.filters.purchases)}" placeholder="Search order, purchase or supplier"></div></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Order</th><th>Supplier</th><th>Expected</th><th>Progress</th><th>Value</th><th>Status</th><th></th></tr></thead><tbody>${orders.length ? orders.map((order) => {
         const ordered = (order.items || []).reduce((sum, item) => sum + num(item.quantity), 0);
@@ -2105,6 +2251,7 @@
         return `<tr><td data-label="Order"><div class="cell-copy"><strong>${esc(order.purchaseOrderNo)}</strong><span>${esc(order.reference || "No reference")}</span></div></td><td data-label="Supplier">${esc(order.supplierName || supplierName(order.supplierId))}</td><td data-label="Expected">${formatDate(order.expectedDate)}</td><td data-label="Progress"><strong>${received} / ${ordered}</strong><span class="table-subtext">units received</span></td><td data-label="Value"><strong>${formatMoney(order.total)}</strong></td><td data-label="Status">${statusBadge(order.status)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-purchase-order" data-id="${order.id}" title="View order">${I("eye")}</button>${order.status === "draft" ? `<button class="mini-button" data-action="edit-purchase-order" data-id="${order.id}" title="Edit order">${I("edit")}</button><button class="mini-button" data-action="submit-purchase-order" data-id="${order.id}" title="Mark ordered">${I("check")}</button>` : ""}${canReceive ? `<button class="mini-button success" data-action="receive-purchase-order" data-id="${order.id}" title="Receive stock">${I("truck")}</button>` : ""}${["draft", "ordered", "partially-received"].includes(order.status) ? `<button class="mini-button danger" data-action="cancel-purchase-order" data-id="${order.id}" title="Cancel order">${I("close")}</button>` : ""}</div></td></tr>`;
       }).join("") : `<tr><td colspan="7">${emptyState("No purchase orders", "Create an order before the next supplier delivery.", "clipboard")}</td></tr>`}</tbody></table></div></section>
       <section class="panel"><div class="panel-header"><div><h2>Received purchases</h2><p>Saving a delivery automatically increases product stock</p></div><button class="button button-outline" data-action="export-purchases">${I("download")}Export CSV</button></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Purchase</th><th>Date</th><th>Supplier</th><th>Order</th><th>Items</th><th>Total</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody>${purchases.length ? purchases.map((p) => `<tr><td data-label="Purchase"><div class="cell-copy"><strong>${esc(p.purchaseNo)}</strong><span>${esc(p.reference || "No supplier reference")}</span></div></td><td data-label="Date">${formatDate(p.date)}</td><td data-label="Supplier">${esc(p.supplierName || supplierName(p.supplierId))}</td><td data-label="Order">${esc(p.purchaseOrderNo || "Direct")}</td><td data-label="Items">${p.items?.length || 0}</td><td data-label="Total"><strong>${formatMoney(p.total)}</strong></td><td data-label="Balance">${formatMoney(p.balance)}</td><td data-label="Status">${statusBadge(p.status)}</td><td data-label="Actions"><button class="mini-button" data-action="view-purchase" data-id="${p.id}">${I("eye")}</button></td></tr>`).join("") : `<tr><td colspan="9">${emptyState("No purchases received", "Receive a supplier delivery to increase stock.", "truck")}</td></tr>`}</tbody></table></div></section>
+      <button class="mobile-sticky-primary" data-action="new-purchase-order">${I("plus")}<span>New purchase order</span></button>
     </div>`;
   }
 
@@ -2119,9 +2266,42 @@
             .includes(query),
         ),
     );
-    $("#appView").innerHTML = `<div class="page-stack">
+    const totalPurchases = state.suppliers.reduce(
+      (sum, supplier) => sum + num(supplier.totalPurchases),
+      0,
+    );
+    const outstanding = state.suppliers.reduce(
+      (sum, supplier) => sum + num(supplier.balance),
+      0,
+    );
+    const suppliersOwed = state.suppliers.filter(
+      (supplier) => num(supplier.balance) > 0,
+    ).length;
+    const activeOrders = state.purchaseOrders.filter((order) =>
+      ["draft", "ordered", "partially-received"].includes(order.status),
+    ).length;
+    $("#appView").innerHTML = `<div class="page-stack phase-page suppliers-phase-page">
+      ${workspaceHero({
+        eyebrow: "Supplier relationships",
+        title: "Keep purchasing contacts and obligations in one place.",
+        description:
+          "Review supplier contacts, purchase activity, open orders and outstanding balances before making the next commitment.",
+        actions: `<button class="button button-primary" data-action="new-supplier">${I("plus")}Add supplier</button><button class="button button-outline" data-view="purchases">${I("truck")}Open purchases</button>`,
+        spotlightLabel: "Accounts payable",
+        spotlightValue: formatMoney(outstanding),
+        spotlightDetail: `${suppliersOwed} supplier${suppliersOwed === 1 ? "" : "s"} currently owed`,
+        iconName: "supplier",
+        tone: outstanding ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Suppliers", state.suppliers.length, `${suppliers.length} matching the current search`, "supplier", "info")}
+        ${operationMetric("Lifetime purchases", formatMoney(totalPurchases), "Recorded supplier stock value", "chart", "success")}
+        ${operationMetric("Active orders", activeOrders, "Orders still awaiting completion", "clipboard", activeOrders ? "warning" : "success")}
+        ${operationMetric("Outstanding", formatMoney(outstanding), "Total amount payable to suppliers", "credit", outstanding ? "warning" : "success")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Supplier directory</h2><p>Manage contacts, purchase history and amounts payable</p></div><button class="button button-primary" data-action="new-supplier">${I("plus")}Add supplier</button></div>
       <section class="panel"><div class="panel-header"><div class="search-box">${I("search")}<input data-filter="suppliers" value="${esc(state.filters.suppliers)}" placeholder="Search supplier"></div><span class="badge primary">${suppliers.length} suppliers</span></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Supplier</th><th>Contact</th><th>Total purchases</th><th>Outstanding</th><th>Last purchase</th><th></th></tr></thead><tbody>${suppliers.length ? suppliers.map((s) => `<tr><td data-label="Supplier"><div class="cell-title"><div class="entity-avatar">${esc(initials(s.name))}</div><div class="cell-copy"><strong>${esc(s.name)}</strong><span>${esc(s.address || "No address")}</span></div></div></td><td data-label="Contact"><div class="cell-copy"><strong>${esc(s.phone || "—")}</strong><span>${esc(s.email || "No email")}</span></div></td><td data-label="Purchases">${formatMoney(s.totalPurchases)}</td><td data-label="Outstanding"><strong>${formatMoney(s.balance)}</strong></td><td data-label="Last purchase">${formatDate(s.lastPurchaseAt)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-supplier" data-id="${s.id}">${I("eye")}</button><button class="mini-button" data-action="supplier-payment" data-id="${s.id}">${I("money")}</button><button class="mini-button" data-action="edit-supplier" data-id="${s.id}">${I("edit")}</button></div></td></tr>`).join("") : `<tr><td colspan="6">${emptyState("No suppliers", "Add suppliers before recording purchase deliveries.", "supplier")}</td></tr>`}</tbody></table></div></section>
+      <button class="mobile-sticky-primary" data-action="new-supplier">${I("plus")}<span>Add supplier</span></button>
     </div>`;
   }
 
@@ -2136,17 +2316,47 @@
             .includes(query),
         ),
     );
-    const due = customers.reduce((s, c) => s + num(c.balance), 0);
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="stats-grid">${statCard("Customers", state.customers.length, "users", "Saved customer accounts", "info")}${statCard("Credit outstanding", formatMoney(due), "credit", "Total amount customers owe", due ? "warning" : "success")}${statCard("Credit customers", state.customers.filter((c) => num(c.balance) > 0).length, "wallet", "Accounts with a balance", "warning")}${statCard("Customer sales", formatMoney(state.customers.reduce((s, c) => s + num(c.totalPurchases), 0)), "chart", "Recorded lifetime purchases", "success")}</section>
+    const due = state.customers.reduce((sum, customer) => sum + num(customer.balance), 0);
+    const creditCustomers = state.customers.filter(
+      (customer) => num(customer.balance) > 0,
+    );
+    const totalPurchases = state.customers.reduce(
+      (sum, customer) => sum + num(customer.totalPurchases),
+      0,
+    );
+    const nearLimit = creditCustomers.filter(
+      (customer) =>
+        num(customer.creditLimit) > 0 &&
+        num(customer.balance) >= num(customer.creditLimit) * 0.8,
+    ).length;
+    $("#appView").innerHTML = `<div class="page-stack phase-page customers-phase-page">
+      ${workspaceHero({
+        eyebrow: "Customer relationships",
+        title: "Serve regular customers without losing control of credit.",
+        description:
+          "Keep contact details, lifetime purchase value, credit limits and repayments connected to every customer account.",
+        actions: `<button class="button button-primary" data-action="new-customer">${I("plus")}Add customer</button><button class="button button-outline" data-view="pos">${I("cart")}Start customer sale</button>`,
+        spotlightLabel: "Credit receivable",
+        spotlightValue: formatMoney(due),
+        spotlightDetail: `${creditCustomers.length} customer account${creditCustomers.length === 1 ? "" : "s"} with a balance`,
+        iconName: "users",
+        tone: due ? "attention" : "ready",
+      })}
+      <section class="operation-metric-strip">
+        ${operationMetric("Customers", state.customers.length, `${customers.length} matching the current search`, "users", "info")}
+        ${operationMetric("Lifetime sales", formatMoney(totalPurchases), "Recorded purchases across customer accounts", "chart", "success")}
+        ${operationMetric("Credit accounts", creditCustomers.length, "Customers with an outstanding balance", "credit", creditCustomers.length ? "warning" : "success")}
+        ${operationMetric("Near credit limit", nearLimit, "Accounts using at least 80% of their limit", "warning", nearLimit ? "warning" : "success")}
+      </section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Customer accounts</h2><p>Track sales, credit limits and repayments</p></div><button class="button button-primary" data-action="new-customer">${I("plus")}Add customer</button></div>
       <section class="panel"><div class="panel-header"><div class="search-box">${I("search")}<input data-filter="customers" value="${esc(state.filters.customers)}" placeholder="Search name or phone"></div><button class="button button-outline" data-action="export-customers">${I("download")}Export CSV</button></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Customer</th><th>Contact</th><th>Total purchases</th><th>Credit balance</th><th>Credit limit</th><th>Last purchase</th><th></th></tr></thead><tbody>${customers.length ? customers.map((c) => `<tr><td data-label="Customer"><div class="cell-title"><div class="entity-avatar">${esc(initials(c.name))}</div><div class="cell-copy"><strong>${esc(c.name)}</strong><span>Joined ${formatDate(c.createdAt, { short: true })}</span></div></div></td><td data-label="Contact"><div class="cell-copy"><strong>${esc(c.phone || "—")}</strong><span>${esc(c.email || c.address || "No additional contact")}</span></div></td><td data-label="Purchases">${formatMoney(c.totalPurchases)}</td><td data-label="Balance"><strong>${formatMoney(c.balance)}</strong></td><td data-label="Limit">${num(c.creditLimit) ? formatMoney(c.creditLimit) : "No limit set"}</td><td data-label="Last purchase">${formatDate(c.lastPurchaseAt)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-customer" data-id="${c.id}">${I("eye")}</button><button class="mini-button" data-action="customer-payment" data-id="${c.id}">${I("money")}</button><button class="mini-button" data-action="edit-customer" data-id="${c.id}">${I("edit")}</button></div></td></tr>`).join("") : `<tr><td colspan="7">${emptyState("No customers", "Add customers to track purchase history and credit.", "users")}</td></tr>`}</tbody></table></div></section>
+      <button class="mobile-sticky-primary" data-action="new-customer">${I("plus")}<span>Add customer</span></button>
     </div>`;
   }
 
   function renderSales() {
     const query = state.filters.sales.toLowerCase();
-    const sales = state.sales.filter(
+    const searchedSales = state.sales.filter(
       (sale) =>
         !query ||
         [
@@ -2159,9 +2369,14 @@
             .includes(query),
         ),
     );
-    const completed = sales.filter(
-      (s) => s.status !== "voided",
-    );
+    const statusFilter = state.salesStatusFilter || "all";
+    const sales = searchedSales.filter((sale) => {
+      if (statusFilter === "all") return true;
+      if (statusFilter === "returned")
+        return ["partially-refunded", "refunded"].includes(sale.status);
+      return sale.status === statusFilter;
+    });
+    const completed = state.sales.filter((sale) => sale.status !== "voided");
     const returns = state.returns.reduce((s, r) => s + num(r.refundTotal), 0);
     const approvals = state.approvalRequests
       .filter((request) => request.type !== "expense")
@@ -2174,26 +2389,42 @@
     const pendingCount = approvals.filter(
       (approval) => approval.status === "pending",
     ).length;
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="stats-grid">${statCard("Sales recorded", state.sales.length, "receipt", "All transaction receipts", "info")}${statCard("Gross sales", formatMoney(completed.reduce((s, x) => s + num(x.total), 0)), "money", "Before approved returns; excludes voids", "success")}${statCard("Approved refunds", formatMoney(returns), "return", `${state.returns.length} processed returns`, "warning")}${statCard("Pending approvals", pendingCount, "lock", "Returns and void requests awaiting review", pendingCount ? "warning" : "success")}</section>
-      <section class="panel approval-panel"><div class="panel-header"><div><h2>Return and void approvals</h2><p>Every decision records the requester, reviewer, time and reason</p></div>${state.business.approvalPinHash ? '<span class="badge success">Manager PIN active</span>' : '<button class="button button-warning" data-view="settings">Set manager PIN</button>'}</div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Request</th><th>Receipt</th><th>Type</th><th>Amount</th><th>Requested by</th><th>Status</th><th></th></tr></thead><tbody>${approvals.length ? approvals.slice(0, 12).map((approval) => `<tr><td data-label="Request"><div class="cell-copy"><strong>${esc(approval.approvalNo)}</strong><span>${formatDateTime(approval.requestedAt)}</span></div></td><td data-label="Receipt">${esc(approval.receiptNo)}</td><td data-label="Type"><strong>${esc(approval.type)}</strong><span class="table-subtext">${esc(approval.reason || "No reason")}</span></td><td data-label="Amount"><strong>${formatMoney(approval.amount)}</strong></td><td data-label="Requested by">${esc(approval.requestedBy || "Unknown")}</td><td data-label="Status">${statusBadge(approval.status)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-approval" data-id="${approval.id}" title="View approval record">${I("eye")}</button>${approval.status === "pending" ? `<button class="mini-button success" data-action="review-approval" data-decision="approve" data-id="${approval.id}" title="Approve">${I("check")}</button><button class="mini-button danger" data-action="review-approval" data-decision="reject" data-id="${approval.id}" title="Reject">${I("close")}</button>` : ""}</div></td></tr>`).join("") : `<tr><td colspan="7">${emptyState("No approval requests", "Return and void requests will appear here for manager review.", "lock")}</td></tr>`}</tbody></table></div></section>
-      <div class="page-toolbar"><div class="toolbar-title"><h2>Transaction history</h2><p>Open receipts, reprint and return individual products</p></div><button class="button button-primary" data-view="pos">${I("plus")}New sale</button></div>
-      <section class="panel"><div class="panel-header"><div class="filter-bar"><div class="search-box">${I("search")}<input data-filter="sales" value="${esc(state.filters.sales)}" placeholder="Search receipt or customer"></div><select class="select-control" id="salesStatusFilter"><option value="">All statuses</option><option value="completed">Completed</option><option value="partially-refunded">Partially refunded</option><option value="refunded">Refunded</option><option value="voided">Voided</option></select></div><button class="button button-outline" data-action="export-sales">${I("download")}Export CSV</button></div><div class="table-wrap mobile-cards"><table class="data-table"><thead><tr><th>Receipt</th><th>Date</th><th>Customer</th><th>Payment</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${sales.length ? sales.map((sale) => {
+    const grossSales = completed.reduce((sum, sale) => sum + num(sale.total), 0);
+    const returnedCount = searchedSales.filter((sale) =>
+      ["partially-refunded", "refunded"].includes(sale.status),
+    ).length;
+    const statusTabs = [
+      ["all", "All", searchedSales.length],
+      [
+        "completed",
+        "Completed",
+        searchedSales.filter((sale) => sale.status === "completed").length,
+      ],
+      ["returned", "Returned", returnedCount],
+      [
+        "voided",
+        "Voided",
+        searchedSales.filter((sale) => sale.status === "voided").length,
+      ],
+    ];
+    const salesTableRows = sales.length
+      ? sales
+          .map((sale) => {
         const hasReturn = state.returns.some((item) => item.saleId === sale.id);
         const pending = pendingApproval(sale.id);
         const canReturn = !["refunded", "voided"].includes(sale.status) && !pending;
         const canVoid = sale.status === "completed" && !hasReturn && !pending;
         return `<tr data-status="${sale.status}"><td data-label="Receipt"><div class="cell-copy"><strong>${esc(sale.receiptNo)}</strong>${pending ? `<span class="approval-pending-label">${esc(pending.type)} approval pending</span>` : ""}</div></td><td data-label="Date">${formatDateTime(sale.createdAt)}</td><td data-label="Customer">${esc(sale.customerName || customerName(sale.customerId))}</td><td data-label="Payment">${esc(paymentLabel(sale.paymentMethod))}</td><td data-label="Items">${sale.items?.reduce((s, i) => s + num(i.quantity), 0) || 0}</td><td data-label="Total"><strong>${formatMoney(sale.total)}</strong></td><td data-label="Status">${statusBadge(sale.status)}</td><td data-label="Actions"><div class="row-actions"><button class="mini-button" data-action="view-sale" data-id="${sale.id}" title="View sale">${I("eye")}</button><button class="mini-button" data-action="print-sale" data-id="${sale.id}" title="Print receipt">${I("print")}</button><button class="mini-button" data-action="download-sale" data-id="${sale.id}" title="Download receipt image">${I("download")}</button>${canReturn ? `<button class="mini-button" data-action="return-sale" data-id="${sale.id}" title="Request return">${I("return")}</button>` : ""}${canVoid ? `<button class="mini-button danger" data-action="request-void" data-id="${sale.id}" title="Request void">${I("close")}</button>` : ""}</div></td></tr>`;
-      }).join("") : `<tr><td colspan="8">${emptyState("No sales found", "Complete a sale to generate a receipt.", "receipt")}</td></tr>`}</tbody></table></div></section>
+          })
+          .join("")
+      : `<tr><td colspan="8">${emptyState("No sales found", "Try another status or complete a new sale.", "receipt")}</td></tr>`;
+    $("#appView").innerHTML = `<div class="page-stack phase-page sales-phase-page">
+      <section class="operations-subhero sales-operations-hero"><div><span class="eyebrow">Receipts and customer care</span><h2>Every transaction, ready to review.</h2><p>Find a receipt, share it professionally, or start a controlled return without losing the audit trail.</p><div class="operations-hero-actions"><button class="button button-primary" data-view="pos">${I("plus")}New sale</button><button class="button button-outline" data-action="export-sales">${I("download")}Export sales</button></div></div><aside><div class="operations-subhero-stat"><span>Net after refunds</span><strong>${formatMoney(grossSales - returns)}</strong><small>${state.sales.length} receipts stored on this device</small></div><button class="operations-status-pill ${pendingCount ? "attention" : "ready"}" data-action="${pendingCount ? "view-approval" : "open-approval-settings"}" ${pendingCount ? `data-id="${esc(approvals.find((approval) => approval.status === "pending")?.id || "")}"` : ""}><span>${I(pendingCount ? "lock" : "check")}</span><span><strong>${pendingCount ? `${pendingCount} approval${pendingCount === 1 ? "" : "s"} waiting` : "Approval queue clear"}</strong><small>${state.business.approvalPinHash ? "Manager PIN is active" : "Set a manager PIN in Settings"}</small></span>${I("arrowRight")}</button></aside></section>
+      <section class="operation-metric-strip" aria-label="Sales summary">${operationMetric("Gross sales", formatMoney(grossSales), "Excludes voided receipts", "money", "success")}${operationMetric("Approved refunds", formatMoney(returns), `${state.returns.length} processed return${state.returns.length === 1 ? "" : "s"}`, "return", returns ? "warning" : "success")}${operationMetric("Pending approvals", pendingCount, "Returns and voids awaiting review", "lock", pendingCount ? "warning" : "success")}${operationMetric("Receipts", state.sales.length, "Stored offline on this device", "receipt", "info")}</section>
+      <section class="panel sales-browser-panel"><div class="sales-browser-head"><div><span class="eyebrow">Transaction history</span><h2>Find a sale or receipt</h2></div><div class="sales-search-actions"><div class="search-box">${I("search")}<input data-filter="sales" value="${esc(state.filters.sales)}" placeholder="Receipt, customer or payment"></div><button class="icon-button" data-action="export-sales" aria-label="Export sales">${I("download")}</button></div></div><div class="operations-segmented" role="tablist" aria-label="Sale status">${statusTabs.map(([value, label, count]) => `<button role="tab" aria-selected="${statusFilter === value}" class="${statusFilter === value ? "active" : ""}" data-action="sales-status" data-id="${value}"><span>${label}</span><strong>${count}</strong></button>`).join("")}</div><div class="phase-desktop-only table-wrap"><table class="data-table"><thead><tr><th>Receipt</th><th>Date</th><th>Customer</th><th>Payment</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${salesTableRows}</tbody></table></div><div class="phase-mobile-only transaction-card-list">${sales.length ? sales.map((sale) => transactionCard(sale)).join("") : emptyState("No sales found", "Try another status or complete a new sale.", "receipt")}</div></section>
+      <section class="panel approval-panel phase-approval-panel"><div class="panel-header"><div><h2>Return and void approvals</h2><p>Every decision records the requester, reviewer, time and reason</p></div>${state.business.approvalPinHash ? '<span class="badge success">Manager PIN active</span>' : '<button class="button button-warning" data-view="settings">Set manager PIN</button>'}</div><div class="phase-desktop-only table-wrap"><table class="data-table"><thead><tr><th>Request</th><th>Receipt</th><th>Type</th><th>Amount</th><th>Requested by</th><th>Status</th><th></th></tr></thead><tbody>${approvals.length ? approvals.slice(0, 12).map((approval) => `<tr><td><div class="cell-copy"><strong>${esc(approval.approvalNo)}</strong><span>${formatDateTime(approval.requestedAt)}</span></div></td><td>${esc(approval.receiptNo)}</td><td><strong>${esc(approval.type)}</strong><span class="table-subtext">${esc(approval.reason || "No reason")}</span></td><td><strong>${formatMoney(approval.amount)}</strong></td><td>${esc(approval.requestedBy || "Unknown")}</td><td>${statusBadge(approval.status)}</td><td><div class="row-actions"><button class="mini-button" data-action="view-approval" data-id="${esc(approval.id)}" title="View approval record">${I("eye")}</button>${approval.status === "pending" ? `<button class="mini-button success" data-action="review-approval" data-decision="approve" data-id="${esc(approval.id)}" title="Approve">${I("check")}</button><button class="mini-button danger" data-action="review-approval" data-decision="reject" data-id="${esc(approval.id)}" title="Reject">${I("close")}</button>` : ""}</div></td></tr>`).join("") : `<tr><td colspan="7">${emptyState("No approval requests", "Return and void requests will appear here for manager review.", "lock")}</td></tr>`}</tbody></table></div><div class="phase-mobile-only approval-queue-list">${approvals.length ? approvals.slice(0, 12).map(approvalQueueCard).join("") : emptyState("No approval requests", "Return and void requests will appear here for manager review.", "lock")}</div></section>
+      <button class="mobile-sticky-primary" data-view="pos">${I("plus")}<span>New sale</span></button>
     </div>`;
-    $("#salesStatusFilter")?.addEventListener("change", (e) =>
-      $$("[data-status]").forEach(
-        (row) =>
-          (row.hidden = Boolean(
-            e.target.value && row.dataset.status !== e.target.value,
-          )),
-      ),
-    );
   }
 
   function alertCategoryLabel(category) {
@@ -2238,9 +2469,9 @@
       (alert) => alertDisplayStatus(alert) === "snoozed",
     );
     const categories = [...new Set(allAlerts.map((alert) => alert.category))];
-    $("#appView").innerHTML = `<div class="page-stack alerts-page">
+    $("#appView").innerHTML = `<div class="page-stack phase-page alerts-page">
       <section class="alerts-hero"><div><span class="eyebrow">Operational intelligence</span><h2>Focus on what needs action now.</h2><p>Alerts are generated from live stock, expiry, approval, purchasing, credit, expense and backup records. They clear automatically when the underlying issue is resolved.</p></div><div class="alerts-hero-score"><span>Open attention items</span><strong>${open.length}</strong><small>${critical.length} critical</small></div></section>
-      <section class="stats-grid">${statCard("Open alerts", open.length, "bell", "Unacknowledged and ready for action", open.length ? "warning" : "success")}${statCard("Critical", critical.length, "warning", "High-priority operational risks", critical.length ? "danger" : "success")}${statCard("Acknowledged", acknowledged.length, "check", "Reviewed while the condition remains", "info")}${statCard("Snoozed", snoozed.length, "calendar", "Temporarily hidden from the active count", "primary")}</section>
+      <section class="operation-metric-strip">${operationMetric("Open alerts", open.length, "Unacknowledged and ready for action", "bell", open.length ? "warning" : "success")}${operationMetric("Critical", critical.length, "High-priority operational risks", "warning", critical.length ? "warning" : "success")}${operationMetric("Acknowledged", acknowledged.length, "Reviewed while the condition remains", "check", "info")}${operationMetric("Snoozed", snoozed.length, "Temporarily hidden from the active count", "calendar", "info")}</section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Alerts inbox</h2><p>Acknowledging an alert records attention; it does not change stock, payments or approvals.</p></div><div class="toolbar-actions"><button class="button button-outline" data-action="acknowledge-all-alerts" ${open.length ? "" : "disabled"}>${I("check")}Acknowledge all</button><button class="button button-primary" data-action="open-alert-settings">${I("settings")}Alert settings</button></div></div>
       <section class="panel"><div class="panel-header alert-filter-bar"><div class="search-box">${I("search")}<input data-filter="alerts" value="${esc(state.filters.alerts)}" placeholder="Search alerts"></div><select class="select-control" id="alertSeverityFilter"><option value="all">All priorities</option><option value="critical" ${state.alertSeverityFilter === "critical" ? "selected" : ""}>Critical</option><option value="warning" ${state.alertSeverityFilter === "warning" ? "selected" : ""}>Warning</option></select><select class="select-control" id="alertCategoryFilter"><option value="all">All categories</option>${categories.map((category) => `<option value="${category}" ${state.alertCategoryFilter === category ? "selected" : ""}>${esc(alertCategoryLabel(category))}</option>`).join("")}</select><select class="select-control" id="alertStatusFilter"><option value="open" ${state.alertStatusFilter === "open" ? "selected" : ""}>Open</option><option value="acknowledged" ${state.alertStatusFilter === "acknowledged" ? "selected" : ""}>Acknowledged</option><option value="snoozed" ${state.alertStatusFilter === "snoozed" ? "selected" : ""}>Snoozed</option><option value="all" ${state.alertStatusFilter === "all" ? "selected" : ""}>All states</option></select></div>
         ${alerts.length ? `<div class="alert-list">${alerts.map((alert) => {
@@ -2367,9 +2598,9 @@
     const approvalHistory = state.approvalRequests
       .filter((request) => request.type === "expense")
       .slice(0, 8);
-    $("#appView").innerHTML = `<div class="page-stack expenses-page">
+    $("#appView").innerHTML = `<div class="page-stack phase-page expenses-page">
       <section class="expense-hero"><div><span class="eyebrow">Financial control</span><h2>Know where every operating shilling goes.</h2><p>Capture evidence, schedule amounts due, control high-value approvals and keep paid expenses connected to the cash register.</p></div><button class="button hero-primary" data-action="new-expense">${I("plus")}Record expense</button></section>
-      <section class="stats-grid">${statCard("This month", formatMoney(month), "wallet", "Approved operating costs", "warning")}${statCard("Outstanding", formatMoney(outstanding), "calendar", `${overdue.length} overdue expense(s)`, outstanding ? "danger" : "success")}${statCard("Pending approval", pendingApprovals.length, "lock", "High-value expenses awaiting review", pendingApprovals.length ? "warning" : "success")}${statCard("Expense records", state.expenses.length, "list", `${state.expenses.filter((expense) => expense.receiptData).length} with receipt evidence`, "info")}</section>
+      <section class="operation-metric-strip">${operationMetric("This month", formatMoney(month), "Approved operating costs", "wallet", "warning")}${operationMetric("Outstanding", formatMoney(outstanding), `${overdue.length} overdue expense${overdue.length === 1 ? "" : "s"}`, "calendar", outstanding ? "warning" : "success")}${operationMetric("Pending approval", pendingApprovals.length, "High-value expenses awaiting review", "lock", pendingApprovals.length ? "warning" : "success")}${operationMetric("Expense records", state.expenses.length, `${state.expenses.filter((expense) => expense.receiptData).length} with receipt evidence`, "list", "info")}</section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Expense ledger</h2><p>Filter operating costs by period, category and control status.</p></div><div class="toolbar-actions"><button class="button button-outline" data-action="export-expenses">${I("download")}Export CSV</button><button class="button button-primary" data-action="new-expense">${I("plus")}Add expense</button></div></div>
       <section class="expense-layout"><article class="panel expense-ledger-panel"><div class="panel-header expense-filter-bar"><div class="search-box">${I("search")}<input data-filter="expenses" value="${esc(state.filters.expenses)}" placeholder="Search number, vendor or description"></div><select class="select-control" id="expensePeriodFilter"><option value="month" ${state.expensePeriodFilter === "month" ? "selected" : ""}>This month</option><option value="today" ${state.expensePeriodFilter === "today" ? "selected" : ""}>Today</option><option value="7d" ${state.expensePeriodFilter === "7d" ? "selected" : ""}>Last 7 days</option><option value="year" ${state.expensePeriodFilter === "year" ? "selected" : ""}>This year</option><option value="all" ${state.expensePeriodFilter === "all" ? "selected" : ""}>All time</option></select><select class="select-control" id="expenseStatusFilter"><option value="all">All statuses</option>${["paid", "unpaid", "overdue", "pending-approval", "rejected", "voided"].map((status) => `<option value="${status}" ${state.expenseStatusFilter === status ? "selected" : ""}>${esc(status.replaceAll("-", " "))}</option>`).join("")}</select><select class="select-control" id="expenseCategoryFilter"><option value="all">All categories</option>${EXPENSE_CATEGORIES.map((category) => `<option ${state.expenseCategoryFilter === category ? "selected" : ""}>${esc(category)}</option>`).join("")}</select></div><div class="table-wrap mobile-cards"><table class="data-table expense-table"><thead><tr><th>Expense</th><th>Vendor</th><th>Date / due</th><th>Category</th><th>Payment</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${expenses.length ? expenses.map((expense) => {
         const status = expenseDisplayStatus(expense);
@@ -2395,6 +2626,7 @@
       }).join("") : `<tr><td colspan="8">${emptyState("No expenses match", "Change the filters or record a new operating expense.", "wallet")}</td></tr>`}</tbody></table></div></article>
         <aside class="expense-insights"><article class="panel"><div class="panel-header"><div><h2>Category allocation</h2><p>Approved expenses in the current filtered view</p></div></div>${categoryMap.size ? `<div class="progress-list">${[...categoryMap.entries()].sort((a, b) => b[1] - a[1]).map(([category, value]) => progressRow(category, value, maxCategory, formatMoney(value))).join("")}</div>` : emptyState("No category data", "Approved expenses will build this breakdown.", "chart")}</article><article class="panel"><div class="panel-header"><div><h2>Approval activity</h2><p>Recent high-value expense decisions</p></div></div>${approvalHistory.length ? `<div class="list-stack">${approvalHistory.map((approval) => `<button class="list-row expense-approval-row" data-action="view-approval" data-id="${approval.id}"><div class="list-main"><div class="list-icon">${I("lock")}</div><div class="list-copy"><strong>${esc(approval.approvalNo)}</strong><span>${esc(approval.reason || "Expense approval")}</span></div></div><div class="list-value">${statusBadge(approval.status)}<span>${formatMoney(approval.amount)}</span></div></button>`).join("")}</div>` : emptyState("No expense approvals", "High-value expenses will appear here when approval control is enabled.", "lock")}</article></aside>
       </section>
+      <button class="mobile-sticky-primary" data-action="new-expense">${I("plus")}<span>Record expense</span></button>
     </div>`;
   }
 
@@ -2416,14 +2648,27 @@
   function renderRegister() {
     const session = openSession();
     const summary = session ? sessionCashSummary(session.id) : null;
-    $("#appView").innerHTML = `<div class="page-stack">
-      <section class="register-hero">
-        <article class="panel register-status-card"><div class="register-status-top"><div><h2>${session ? "Register is open" : "Register is closed"}</h2><p>${session ? `Opened ${formatDateTime(session.openedAt)} by ${esc(session.cashier)}` : "Open a register before controlling physical cash movements."}</p></div>${session ? '<span class="badge success">Open</span>' : '<span class="badge">Closed</span>'}</div>
-          ${session ? `<div class="register-metrics"><div class="register-metric"><span>Opening float</span><strong>${formatMoney(session.openingFloat)}</strong></div><div class="register-metric"><span>Expected cash</span><strong>${formatMoney(summary.expected)}</strong></div><div class="register-metric"><span>Cash movements</span><strong>${summary.movements.length}</strong></div></div><div class="register-actions"><button class="button button-outline" data-action="cash-in">${I("arrowDown")}Cash in</button><button class="button button-outline" data-action="cash-out">${I("arrowUp")}Cash out</button><button class="button button-danger" data-action="close-register">${I("lock")}Close register</button></div>` : `<div class="notice warning" style="margin-top:18px">${I("warning")}<div>Sales can still be recorded, but cash reconciliation will be incomplete until a register is opened.</div></div><div class="register-actions"><button class="button button-primary" data-action="open-register">${I("register")}Open register</button></div>`}
-        </article>
-        <article class="panel"><div class="panel-header"><div><h2>Cash composition</h2><p>Movement totals for the current open session</p></div></div>${session ? `<div class="breakdown-list"><div class="breakdown-row"><span>Opening float</span><strong>${formatMoney(summary.byType["opening-float"] || 0)}</strong></div><div class="breakdown-row"><span>Cash sales</span><strong>${formatMoney(summary.byType.sale || 0)}</strong></div><div class="breakdown-row"><span>Customer payments</span><strong>${formatMoney(summary.byType["customer-payment"] || 0)}</strong></div><div class="breakdown-row"><span>Cash refunds and voids</span><strong>${formatMoney((summary.byType.refund || 0) + (summary.byType.void || 0))}</strong></div><div class="breakdown-row"><span>Purchases and supplier payments</span><strong>${formatMoney((summary.byType.purchase || 0) + (summary.byType["supplier-payment"] || 0))}</strong></div><div class="breakdown-row"><span>Expenses</span><strong>${formatMoney(summary.byType.expense || 0)}</strong></div><div class="breakdown-row"><span>Manual cash movements</span><strong>${formatMoney((summary.byType["cash-in"] || 0) + (summary.byType["cash-out"] || 0))}</strong></div><div class="breakdown-row total"><span>Expected drawer cash</span><strong>${formatMoney(summary.expected)}</strong></div></div>` : emptyState("No open session", "Open a register to begin cash reconciliation.", "register")}</article>
-      </section>
-      <section class="panel"><div class="panel-header"><div><h2>${session ? "Current-session cash movements" : "Register session history"}</h2><p>${session ? "Every change affecting expected physical cash" : "Previous register opening and closing records"}</p></div></div>${session ? cashMovementTable(summary.movements) : registerHistoryTable()}</section>
+    const cashIn = session
+      ? num(summary.byType.sale) +
+        num(summary.byType["customer-payment"]) +
+        num(summary.byType["cash-in"])
+      : 0;
+    const cashOut = session
+      ? Math.abs(
+          num(summary.byType.refund) +
+            num(summary.byType.void) +
+            num(summary.byType.purchase) +
+            num(summary.byType["supplier-payment"]) +
+            num(summary.byType.expense) +
+            num(summary.byType["cash-out"]),
+        )
+      : 0;
+    $("#appView").innerHTML = `<div class="page-stack phase-page register-phase-page">
+      <section class="operations-subhero register-command-hero ${session ? "is-open" : "is-closed"}"><div><span class="eyebrow">Cash control</span><div class="register-command-title"><span class="register-command-icon">${I("register")}</span><div><h2>${session ? "Register is open" : "Open the register to begin"}</h2><p>${session ? `Started ${formatDateTime(session.openedAt)} by ${esc(session.cashier)}.` : "Start a controlled shift before accepting and reconciling physical cash."}</p></div></div><div class="operations-hero-actions">${session ? `<button class="button button-outline" data-action="cash-in">${I("arrowDown")}Cash in</button><button class="button button-outline" data-action="cash-out">${I("arrowUp")}Cash out</button><button class="button button-danger" data-action="close-register">${I("lock")}Close shift</button>` : `<button class="button button-primary" data-action="open-register">${I("register")}Open register</button><button class="button button-outline" data-view="pos">${I("cart")}Go to checkout</button>`}</div></div><aside class="register-balance-card"><span>${session ? "Expected drawer cash" : "Register status"}</span><strong>${session ? formatMoney(summary.expected) : "Closed"}</strong><small>${session ? `${summary.movements.length} recorded movement${summary.movements.length === 1 ? "" : "s"}` : "Cash reconciliation is not active"}</small><div class="register-shift-state ${session ? "ready" : "attention"}">${I(session ? "check" : "warning")}<span>${session ? "Shift protected and auditable" : "Cash sales will not reconcile"}</span></div></aside></section>
+      <section class="operation-metric-strip" aria-label="Register summary">${operationMetric("Opening float", session ? formatMoney(session.openingFloat) : "—", session ? "Starting drawer amount" : "Open a shift to begin", "money", "info")}${operationMetric("Cash received", session ? formatMoney(cashIn) : "—", "Sales, payments and cash in", "arrowDown", "success")}${operationMetric("Cash removed", session ? formatMoney(cashOut) : "—", "Refunds, expenses and cash out", "arrowUp", cashOut ? "warning" : "success")}${operationMetric("Movements", session ? summary.movements.length : state.registerSessions.length, session ? "Current shift records" : "Previous shift records", "activity", "info")}</section>
+      <section class="register-workspace-grid"><article class="panel register-composition-panel"><div class="panel-header"><div><h2>Cash composition</h2><p>${session ? "How the expected drawer balance was calculated" : "Open a register to activate live cash controls"}</p></div>${session ? '<span class="badge success">Live shift</span>' : '<span class="badge">Inactive</span>'}</div>${session ? `<div class="breakdown-list"><div class="breakdown-row"><span>Opening float</span><strong>${formatMoney(summary.byType["opening-float"] || 0)}</strong></div><div class="breakdown-row"><span>Cash sales</span><strong>${formatMoney(summary.byType.sale || 0)}</strong></div><div class="breakdown-row"><span>Customer payments</span><strong>${formatMoney(summary.byType["customer-payment"] || 0)}</strong></div><div class="breakdown-row"><span>Cash refunds and voids</span><strong>${formatMoney((summary.byType.refund || 0) + (summary.byType.void || 0))}</strong></div><div class="breakdown-row"><span>Purchases and supplier payments</span><strong>${formatMoney((summary.byType.purchase || 0) + (summary.byType["supplier-payment"] || 0))}</strong></div><div class="breakdown-row"><span>Expenses</span><strong>${formatMoney(summary.byType.expense || 0)}</strong></div><div class="breakdown-row"><span>Manual cash movements</span><strong>${formatMoney((summary.byType["cash-in"] || 0) + (summary.byType["cash-out"] || 0))}</strong></div><div class="breakdown-row total"><span>Expected drawer cash</span><strong>${formatMoney(summary.expected)}</strong></div></div>` : emptyState("No open session", "Open a register to begin cash reconciliation.", "register")}</article><article class="panel register-guidance-panel"><div class="panel-header"><div><h2>Shift controls</h2><p>Recommended register workflow</p></div></div><ol class="register-step-list"><li class="${session ? "complete" : "current"}"><span>${session ? I("check") : "1"}</span><div><strong>Open shift</strong><small>Record operator and opening float</small></div></li><li class="${session ? "current" : ""}"><span>2</span><div><strong>Operate and record</strong><small>Sales and cash movements update the drawer</small></div></li><li><span>3</span><div><strong>Count and close</strong><small>Compare physical cash with expected cash</small></div></li></ol>${session ? `<div class="register-control-grid"><button data-action="cash-in">${I("arrowDown")}<span><strong>Cash in</strong><small>Add money to drawer</small></span></button><button data-action="cash-out">${I("arrowUp")}<span><strong>Cash out</strong><small>Remove money with reason</small></span></button></div>` : `<button class="button button-primary button-full" data-action="open-register">${I("register")}Start controlled shift</button>`}</article></section>
+      <section class="panel register-movements-panel"><div class="panel-header"><div><h2>${session ? "Current shift activity" : "Register session history"}</h2><p>${session ? "Every event affecting expected physical cash" : "Previous opening and closing records"}</p></div>${session ? `<span class="badge primary">${summary.movements.length} movements</span>` : `<span class="badge primary">${state.registerSessions.length} shifts</span>`}</div><div class="phase-desktop-only">${session ? cashMovementTable(summary.movements) : registerHistoryTable()}</div><div class="phase-mobile-only">${session ? cashMovementCards(summary.movements) : registerHistoryCards()}</div></section>
+      <button class="mobile-sticky-primary ${session ? "danger" : ""}" data-action="${session ? "close-register" : "open-register"}">${I(session ? "lock" : "register")}<span>${session ? `Close shift · ${formatMoney(summary.expected)}` : "Open cash register"}</span></button>
     </div>`;
   }
 
@@ -2546,9 +2791,21 @@
       (s, p) => s + num(p.stock) * num(p.purchasePrice),
       0,
     );
-    $("#appView").innerHTML = `<div class="page-stack">
+    $("#appView").innerHTML = `<div class="page-stack phase-page reports-phase-page">
+      ${workspaceHero({
+        eyebrow: "Business intelligence",
+        title: "Turn daily transactions into operating decisions.",
+        description:
+          "Review sales, profit, expenses, stock health and credit obligations using records stored on this device.",
+        actions: `<button class="button button-primary" data-action="export-report">${I("download")}Export report</button><button class="button button-outline" data-view="dashboard">${I("dashboard")}Open command centre</button>`,
+        spotlightLabel: "Estimated net profit",
+        spotlightValue: formatMoney(data.netProfit),
+        spotlightDetail: `${data.sales.length} completed receipt${data.sales.length === 1 ? "" : "s"} in the selected period`,
+        iconName: "chart",
+        tone: data.netProfit >= 0 ? "ready" : "attention",
+      })}
       <div class="page-toolbar"><div class="toolbar-title"><h2>Business performance</h2><p>Financial estimates based on transactions stored on this device</p></div><div class="toolbar-actions"><select class="select-control" id="reportPeriod"><option value="today" ${state.reportPeriod === "today" ? "selected" : ""}>Today</option><option value="7d" ${state.reportPeriod === "7d" ? "selected" : ""}>Last 7 days</option><option value="30d" ${state.reportPeriod === "30d" ? "selected" : ""}>Last 30 days</option><option value="month" ${state.reportPeriod === "month" ? "selected" : ""}>This month</option><option value="year" ${state.reportPeriod === "year" ? "selected" : ""}>This year</option><option value="all" ${state.reportPeriod === "all" ? "selected" : ""}>All time</option></select><button class="button button-outline" data-action="export-report">${I("download")}Export report</button></div></div>
-      <section class="stats-grid">${statCard("Net sales", formatMoney(data.netSales), "money", `${data.sales.length} completed receipts`, "success")}${statCard("Gross profit", formatMoney(data.grossProfit), "chart", "Net sales less product cost", "info")}${statCard("Operating expenses", formatMoney(data.expenseTotal), "wallet", `${data.expenses.length} expense entries`, "warning")}${statCard("Estimated net profit", formatMoney(data.netProfit), "activity", "Gross profit less expenses", data.netProfit >= 0 ? "success" : "danger")}</section>
+      <section class="operation-metric-strip">${operationMetric("Net sales", formatMoney(data.netSales), `${data.sales.length} completed receipts`, "money", "success")}${operationMetric("Gross profit", formatMoney(data.grossProfit), "Net sales less product cost", "chart", "info")}${operationMetric("Operating expenses", formatMoney(data.expenseTotal), `${data.expenses.length} expense entries`, "wallet", "warning")}${operationMetric("Net margin", data.netSales ? `${((data.netProfit / data.netSales) * 100).toFixed(1)}%` : "0.0%", "Estimated net profit divided by net sales", "activity", data.netProfit >= 0 ? "success" : "warning")}</section>
       <section class="report-grid">
         <article class="panel"><div class="panel-header"><div><h2>Top-selling products</h2><p>Ranked by quantity sold</p></div></div>${topProducts.length ? `<div class="ranking-list">${topProducts.map((p, index) => `<div class="ranking-row"><div class="rank">${index + 1}</div><div class="ranking-copy"><strong>${esc(p.name)}</strong><span>${num(p.qty)} units sold</span></div><div class="ranking-value">${formatMoney(p.revenue)}</div></div>`).join("")}</div>` : emptyState("No sales in period", "Change the report period or complete sales.", "chart")}</article>
         <article class="panel"><div class="panel-header"><div><h2>Payment methods</h2><p>Collected amount by payment channel</p></div></div>${
@@ -2643,7 +2900,7 @@
     const backupHealthy =
       backupDays !== null &&
       backupDays <= clamp(num(state.business.backupReminderDays) || 7, 1, 90);
-    $("#appView").innerHTML = `<div class="page-stack settings-page">
+    $("#appView").innerHTML = `<div class="page-stack phase-page settings-page">
       <section class="settings-hero"><div><span class="eyebrow">Operations control centre</span><h2>Make the POS work your way.</h2><p>Configure branding, accessibility, checkout sounds, alerts, stock policy and device recovery from one organized workspace.</p></div><div class="settings-health"><div class="${state.business.approvalPinHash ? "ready" : "attention"}">${I("lock")}<span><strong>${state.business.approvalPinHash ? "PIN protected" : "PIN needed"}</strong><small>${pending} pending approval(s)</small></span></div><div class="${backupHealthy ? "ready" : "attention"}">${I("database")}<span><strong>${backupHealthy ? "Backup current" : "Backup due"}</strong><small>${lastBackup ? `${backupDays} day(s) ago` : "Not backed up yet"}</small></span></div><div class="ready">${I("check")}<span><strong>Offline ready</strong><small>Version ${APP_VERSION} · DB v6</small></span></div></div></section>
       <section class="settings-workspace"><aside class="settings-nav panel"><div class="settings-nav-heading"><strong>Settings</strong><span>Select a category</span></div>${settingsNavButton("business", "store", "Business profile", "Identity, currency and tax")}${settingsNavButton("appearance", "image", "Appearance", "Colours and accessibility")}${settingsNavButton("checkout", "cart", "Checkout", "Payments and sale flow")}${settingsNavButton("receipts", "receipt", "Receipts", "Branding and content")}${settingsNavButton("inventory", "boxes", "Inventory", "Alerts and stock policy")}${settingsNavButton("security", "lock", "Approvals", "Returns and void control")}${settingsNavButton("data", "database", "Data & device", "Backup, exports and install")}</aside><div class="settings-content">${settingsSectionContent(installed)}</div></section>
       <input type="file" id="backupInput" accept="application/json" hidden>
@@ -2741,6 +2998,14 @@
         openCustomerModal(state.customers.find((c) => c.id === id)),
       "view-customer": () => openCustomerDetails(id),
       "customer-payment": () => openCustomerPaymentModal(id),
+      "sales-status": () => {
+        state.salesStatusFilter = ["all", "completed", "returned", "voided"].includes(
+          id,
+        )
+          ? id
+          : "all";
+        renderSales();
+      },
       "view-sale": () => openSaleDetails(id),
       "print-sale": () => printSale(id),
       "download-sale": () => downloadReceiptById(id),
@@ -2764,6 +3029,10 @@
       "open-alert-target": () => openAlertTarget(id),
       "open-alert-settings": () => {
         state.settingsSection = "alerts";
+        navigate("settings");
+      },
+      "open-approval-settings": () => {
+        state.settingsSection = "security";
         navigate("settings");
       },
       "open-register": openRegisterModal,
@@ -4629,6 +4898,7 @@
       "Start a cash-control session for this device",
       `<form data-form="open-register"><div class="form-grid"><div class="field"><label>Cashier / operator name</label><input name="cashier" required placeholder="Enter operator name"></div><div class="field"><label>Opening cash float</label><input type="number" name="openingFloat" min="0" step="0.01" required value="0"></div><div class="field full"><label>Opening note</label><input name="notes" placeholder="Optional shift note"></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-primary">${I("register")}Open register</button></div></form>`,
     );
+    $("#modalCard")?.classList.add("register-workflow-sheet");
   }
   async function saveOpenRegister(form) {
     const data = Object.fromEntries(new FormData(form));
@@ -4658,6 +4928,7 @@
       `Expected drawer cash: ${formatMoney(summary.expected)}`,
       `<form data-form="close-register"><input type="hidden" name="sessionId" value="${session.id}"><div class="notice warning">${I("warning")}<div>Count the physical cash in the drawer. The system will calculate any shortage or overage.</div></div><div class="form-grid" style="margin-top:13px"><div class="field"><label>Expected cash</label><input value="${formatMoney(summary.expected)}" disabled></div><div class="field"><label>Actual counted cash</label><input type="number" name="actualCash" min="0" step="0.01" required></div><div class="field full"><label>Closing notes</label><textarea name="notes"></textarea></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-danger">${I("lock")}Close register</button></div></form>`,
     );
+    $("#modalCard")?.classList.add("register-workflow-sheet");
   }
   async function saveCloseRegister(form) {
     const data = Object.fromEntries(new FormData(form));
@@ -4689,6 +4960,7 @@
       "Manual cash movement for the active register",
       `<form data-form="cash-movement"><input type="hidden" name="type" value="${type}"><div class="form-grid"><div class="field"><label>Amount</label><input type="number" name="amount" min="0.01" step="0.01" required></div><div class="field"><label>Reason</label><input name="note" required placeholder="Explain the movement"></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-primary">Record movement</button></div></form>`,
     );
+    $("#modalCard")?.classList.add("register-workflow-sheet");
   }
   async function saveCashMovement(form) {
     const data = Object.fromEntries(new FormData(form));
@@ -4899,6 +5171,7 @@
       `${pending ? `<div class="notice warning">${I("lock")}<div><strong>${esc(pending.approvalNo)} is awaiting manager approval.</strong><br>No stock or cash has changed yet.</div></div>` : ""}<div class="form-grid three" style="margin-top:${pending ? "13px" : "0"}"><div class="notice info"><div><strong>Customer</strong><br>${esc(sale.customerName || customerName(sale.customerId))}</div></div><div class="notice info"><div><strong>Payment</strong><br>${esc(paymentLabel(sale.paymentMethod))}</div></div><div class="notice info"><div><strong>Status</strong><br>${statusBadge(sale.status)}</div></div></div><div class="table-wrap" style="margin-top:13px"><table class="data-table"><thead><tr><th>Product</th><th>Qty</th><th>Returned</th><th>Unit price</th><th>Total</th></tr></thead><tbody>${sale.items.map((i) => `<tr><td><strong>${esc(i.name)}</strong></td><td>${num(i.quantity)}</td><td>${num(i.returnedQty)}</td><td>${formatMoney(i.unitPrice)}</td><td>${formatMoney(i.lineTotal || num(i.quantity) * num(i.unitPrice))}</td></tr>`).join("")}</tbody></table></div><div class="totals-box"><div class="summary-row"><span>Subtotal</span><strong>${formatMoney(sale.subtotal)}</strong></div><div class="summary-row"><span>Discount</span><strong>${formatMoney(sale.discount)}</strong></div><div class="summary-row"><span>Tax</span><strong>${formatMoney(sale.tax)}</strong></div><div class="summary-row total"><span>Total</span><strong>${formatMoney(sale.total)}</strong></div></div><div class="form-actions receipt-detail-actions"><button class="button button-outline" data-action="print-sale" data-id="${sale.id}">${I("print")}Print</button><button class="button button-outline" data-action="download-sale" data-id="${sale.id}">${I("download")}Download</button><button class="button button-outline" data-action="share-sale" data-id="${sale.id}">${I("share")}Share</button>${canReturn ? `<button class="button button-warning" data-action="return-sale" data-id="${sale.id}">${I("return")}Request return</button>` : ""}${canVoid ? `<button class="button button-danger" data-action="request-void" data-id="${sale.id}">${I("close")}Request void</button>` : ""}<button class="button button-primary" data-action="close-modal">Close</button></div>`,
       true,
     );
+    $("#modalCard")?.classList.add("receipt-detail-sheet");
   }
   function openReturnModal(id) {
     const sale = state.sales.find((s) => s.id === id);
@@ -4919,6 +5192,7 @@
         )}</tbody></table></div><div class="form-grid" style="margin-top:13px"><div class="field"><label>Requested by</label><input name="requestedBy" required value="${esc(currentOperator())}"></div><div class="field"><label>Refund method</label><select name="refundMethod"><option value="cash">Cash</option><option value="mobile-money">Mobile Money</option><option value="card">Card</option>${sale.customerId ? '<option value="credit-account">Reduce customer account</option>' : ""}</select></div><div class="field"><label>Reason</label><select name="reason"><option>Customer changed mind</option><option>Damaged product</option><option>Wrong product</option><option>Expired product</option><option>Pricing error</option><option>Other</option></select></div><div class="field full"><label>Notes${settingEnabled("requireReturnNotes", true) ? " *" : ""}</label><input name="notes" ${settingEnabled("requireReturnNotes", true) ? "required" : ""} placeholder="Explain the request for the reviewer"></div></div><div class="totals-box" id="returnTotals"><div class="summary-row total"><span>Refund total</span><strong>${formatMoney(0)}</strong></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="set-return-all" data-id="${sale.id}">Return all available</button><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-warning">${I("lock")}Submit for approval</button></div></form>`,
       true,
     );
+    $("#modalCard")?.classList.add("controlled-workflow-sheet");
   }
   function updateReturnTotals() {
     let total = 0;
@@ -5014,6 +5288,7 @@
       `<form data-form="void-request"><input type="hidden" name="saleId" value="${sale.id}"><div class="notice danger">${I("warning")}<div><strong>Voiding reverses the complete transaction.</strong><br>After manager approval, sold stock is restored, customer credit is reversed and cash is removed from the register record.</div></div><div class="form-grid" style="margin-top:13px"><div class="field"><label>Requested by</label><input name="requestedBy" required value="${esc(currentOperator())}"></div><div class="field"><label>Reason</label><select name="reason"><option>Sale entered by mistake</option><option>Duplicate transaction</option><option>Payment failed</option><option>Customer cancelled immediately</option><option>Wrong customer selected</option><option>Other</option></select></div><div class="field full"><label>Detailed notes${settingEnabled("requireVoidNotes", true) ? " *" : ""}</label><textarea name="notes" ${settingEnabled("requireVoidNotes", true) ? "required" : ""} placeholder="Explain why the entire sale must be voided"></textarea></div></div><div class="totals-box"><div class="summary-row"><span>Items restored after approval</span><strong>${sale.items.reduce((sum, item) => sum + num(item.quantity), 0)}</strong></div><div class="summary-row total"><span>Transaction value</span><strong>${formatMoney(sale.total)}</strong></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button button-danger">${I("lock")}Submit void request</button></div></form>`,
       true,
     );
+    $("#modalCard")?.classList.add("controlled-workflow-sheet");
   }
 
   async function saveVoidRequest(form) {
@@ -5069,6 +5344,7 @@
       `<form data-form="approval-review"><input type="hidden" name="approvalId" value="${approval.id}"><input type="hidden" name="decision" value="${approving ? "approve" : "reject"}"><div class="approval-summary ${approving ? "approve" : "reject"}"><div><span>Request type</span><strong>${esc(approval.type.toUpperCase())}</strong></div><div><span>Amount</span><strong>${formatMoney(approval.amount)}</strong></div><div><span>Requested by</span><strong>${esc(approval.requestedBy)}</strong></div></div><div class="notice ${state.business.approvalPinHash ? "info" : "warning"}" style="margin-top:13px">${I(state.business.approvalPinHash ? "lock" : "warning")}<div>${state.business.approvalPinHash ? "Enter the manager PIN to create a verified approval record." : "No approval PIN is configured. Open Settings and create one before reviewing this request."}</div></div><div class="form-grid" style="margin-top:13px"><div class="field"><label>Reviewer name</label><input name="reviewedBy" required value="${esc(state.business.managerName || "Manager")}"></div><div class="field"><label>Manager PIN</label><input name="pin" type="password" inputmode="numeric" minlength="4" maxlength="8" pattern="[0-9]{4,8}" autocomplete="off" required placeholder="4–8 digits"></div><div class="field full"><label>Review note</label><textarea name="reviewNote" placeholder="Optional decision note"></textarea></div></div><div class="form-actions"><button type="button" class="button button-outline" data-action="close-modal">Cancel</button><button class="button ${approving ? "button-primary" : "button-danger"}" ${state.business.approvalPinHash ? "" : "disabled"}>${I(approving ? "check" : "close")}${approving ? "Approve and process" : "Reject request"}</button></div></form>`,
       true,
     );
+    $("#modalCard")?.classList.add("controlled-workflow-sheet");
   }
 
   async function saveApprovalReview(form) {
