@@ -1,11 +1,20 @@
-# MTECH Retail POS v4.4.0
+# MTECH Retail POS v4.5.0
 
-MTECH Retail POS is an offline-first, installable point-of-sale and inventory system for independent shops. Version 4.4 completes the responsive frontend modernization across every operational page while preserving split-stage checkout, custom colours, accessibility controls, installation readiness, sounds, barcode scanning, receipts, controlled returns, alerts, expenses, purchasing, reporting, and IndexedDB workflows.
+MTECH Retail POS is an offline-first, installable point-of-sale and inventory system for independent shops. Version 4.5 gives every operational screen one coherent Sales-inspired workspace system while preserving split-stage checkout, custom colours, accessibility controls, installation readiness, sounds, barcode scanning, receipts, controlled returns, alerts, expenses, purchasing, reporting, and IndexedDB workflows.
 
 ## Project links
 
 - Production app: https://mtech-smart-pos.vercel.app/
 - GitHub repository: https://github.com/Micjeal/MTECH-Smart-pos
+
+## Version 4.5 consistent workspace release
+
+- Extends the Sales page hierarchy to catalogue, inventory, stock counts, purchases, customers, suppliers, expenses, alerts, reports, register controls, and settings.
+- Adds a reusable hero status control so each screen pairs its main outcome with the next operational action.
+- Moves Alerts and Expenses from isolated gradient banners into the same white operational hero, metric strip, toolbar, and panel language used throughout the app.
+- Fixes a responsive cascade issue that could expose mobile-only receipt and approval states on desktop.
+- Raises operational labels, helper text, tables, cards, and empty states to more readable sizes while retaining large-text, high-contrast, reduced-motion, and large-touch preferences.
+- Strengthens mobile setup with a more prominent install action, four explicit opt-in readiness controls, clearer privacy language, and a three-stage branded startup screen.
 
 ## Version 4.4 complete frontend modernization
 
