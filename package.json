@@ -1,6 +1,6 @@
 {
   "name": "mtech-smart-pos",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "private": true,
   "description": "Offline-first retail point-of-sale PWA",
   "scripts": {

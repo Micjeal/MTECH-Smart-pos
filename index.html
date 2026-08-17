@@ -35,7 +35,7 @@
         } catch (_) {}
       })();
     </script>
-    <link rel="stylesheet" href="/assets/css/app.css?v=4.4.0-r1" />
+    <link rel="stylesheet" href="/assets/css/app.css?v=4.5.0-r1" />
     <title>MTECH Retail POS</title>
   </head>
   <body class="is-booting">
@@ -46,6 +46,11 @@
         <h1>Preparing your retail workspace</h1>
         <p id="startupStatus">Loading secure offline data…</p>
         <div class="startup-progress" aria-hidden="true"><span></span></div>
+        <div class="startup-stage-list" aria-hidden="true">
+          <span class="current" data-startup-stage="1"><i>1</i><b>Device</b></span>
+          <span data-startup-stage="2"><i>2</i><b>Data</b></span>
+          <span data-startup-stage="3"><i>3</i><b>Workspace</b></span>
+        </div>
         <small>Sales · Stock · Alerts · Expenses</small>
       </div>
     </div>
@@ -176,6 +181,7 @@
               class="button button-outline install-trigger"
               data-action="install-app"
               id="installButton"
+              aria-label="Review mobile setup and install"
             ></button>
             <button
               class="button button-primary compact-action"
@@ -286,9 +292,9 @@
     <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
     <div id="printArea" class="print-area"></div>
 
-    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.4.0-r1"></script>
-    <script src="/assets/js/icons.js?v=4.4.0-r1"></script>
-    <script src="/assets/js/db.js?v=4.4.0-r1"></script>
-    <script src="/assets/js/app.js?v=4.4.0-r1"></script>
+    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.5.0-r1"></script>
+    <script src="/assets/js/icons.js?v=4.5.0-r1"></script>
+    <script src="/assets/js/db.js?v=4.5.0-r1"></script>
+    <script src="/assets/js/app.js?v=4.5.0-r1"></script>
   </body>
 </html>

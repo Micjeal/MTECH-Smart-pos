@@ -6976,3 +6976,477 @@ html[data-reduced-motion="true"] *::after {
     grid-template-columns: 1fr;
   }
 }
+
+/* MTECH Smart POS 4.5 — consistent workspace and mobile accessibility pass */
+.phase-mobile-only {
+  display: none !important;
+}
+
+.workspace-hero-aside {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-hero-status {
+  width: 100%;
+  min-height: 64px;
+}
+
+.workspace-operations-hero,
+.sales-operations-hero,
+.register-command-hero,
+.settings-hero {
+  min-height: 224px;
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 14px 42px rgba(20, 66, 58, 0.055);
+}
+
+.operations-subhero h2,
+.settings-hero h2 {
+  margin: 7px 0 9px;
+  font-size: clamp(25px, 2.7vw, 31px);
+  line-height: 1.08;
+  letter-spacing: -0.042em;
+}
+
+.operations-subhero p,
+.settings-hero p {
+  max-width: 720px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.62;
+}
+
+.workspace-spotlight {
+  min-height: 132px;
+  padding: 19px;
+}
+
+.workspace-spotlight > div > span,
+.operations-subhero-stat span,
+.register-balance-card > span {
+  font-size: 10.5px;
+}
+
+.workspace-spotlight small,
+.operations-subhero-stat small,
+.register-balance-card > small {
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.operations-status-pill strong {
+  font-size: 12px;
+}
+
+.operations-status-pill small {
+  font-size: 10.5px;
+}
+
+.operation-metric {
+  min-height: 118px;
+  padding: 17px;
+}
+
+.operation-metric span {
+  font-size: 10.5px;
+}
+
+.operation-metric strong {
+  margin-top: 7px;
+  font-size: 20px;
+}
+
+.operation-metric small {
+  margin-top: 7px;
+  font-size: 10px;
+  line-height: 1.42;
+}
+
+.button {
+  min-height: 42px;
+  font-size: 12px;
+}
+
+.toolbar-title h2,
+.sales-browser-head h2 {
+  font-size: 16px;
+}
+
+.toolbar-title p,
+.panel-header p,
+.count-guidance-heading p {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.panel-header h2 {
+  font-size: 14px;
+}
+
+.data-table th {
+  height: 44px;
+  font-size: 9.5px;
+}
+
+.data-table td {
+  font-size: 11.5px;
+}
+
+.cell-copy strong,
+.transaction-card-title strong,
+.approval-queue-head > div > strong,
+.cash-movement-copy strong,
+.register-history-card > div > strong,
+.register-step-list strong,
+.register-control-grid strong {
+  font-size: 12px;
+}
+
+.cell-copy span,
+.transaction-card-title span,
+.transaction-card-body span,
+.transaction-card-foot > div:first-child,
+.approval-queue-head > div > span,
+.approval-queue-card > p,
+.approval-queue-meta span,
+.cash-movement-copy span,
+.cash-movement-copy small,
+.register-history-card > div > span,
+.register-step-list small,
+.register-control-grid small {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.transaction-card-body strong {
+  font-size: 12px;
+}
+
+.transaction-total strong {
+  font-size: 15px;
+}
+
+.mini-button.labelled span,
+.transaction-pending,
+.register-shift-state {
+  font-size: 10px;
+}
+
+.empty-state {
+  min-height: 184px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+}
+
+.empty-state strong {
+  font-size: 14px;
+}
+
+.empty-state p,
+.empty-inline {
+  font-size: 11px;
+}
+
+.alerts-page > .panel,
+.expenses-page .panel,
+.sales-phase-page > .panel,
+.register-phase-page > .panel,
+.settings-workspace .panel {
+  box-shadow: 0 10px 32px rgba(20, 66, 58, 0.035);
+}
+
+.alert-item h3 {
+  font-size: 13px;
+}
+
+.alert-item p,
+.alert-item small,
+.alert-item-meta {
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.settings-hero {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.settings-hero .eyebrow {
+  color: var(--primary);
+}
+
+.settings-health > div {
+  min-height: 108px;
+  border-color: var(--line);
+  background: var(--surface-2);
+  backdrop-filter: none;
+}
+
+.settings-health > div > .icon {
+  color: var(--primary);
+}
+
+.settings-health > div.attention > .icon {
+  color: var(--warning);
+}
+
+.settings-health strong {
+  color: var(--ink);
+  font-size: 11.5px;
+}
+
+.settings-health small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.settings-nav-heading span,
+.settings-nav-item small,
+.settings-content-heading p,
+.settings-form small,
+.settings-action span,
+.device-status-grid small,
+.theme-live-preview p {
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.settings-nav-item strong,
+.settings-action strong {
+  font-size: 11.5px;
+}
+
+.install-trigger {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--line));
+  background: var(--primary-soft);
+  color: var(--primary);
+  box-shadow: 0 8px 20px rgba(20, 66, 58, 0.06);
+}
+
+.install-trigger:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary-soft) 70%, #fff);
+}
+
+.install-permission {
+  min-height: 88px;
+  padding: 14px;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.install-permission:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+  transform: translateY(-1px);
+}
+
+.install-permission strong {
+  font-size: 12px;
+}
+
+.install-permission small {
+  font-size: 10.5px;
+}
+
+.mobile-accessibility-form .form-actions .button-primary {
+  min-height: 48px;
+  padding-inline: 20px;
+}
+
+.startup-splash {
+  background:
+    radial-gradient(circle at 18% 16%, color-mix(in srgb, var(--primary-soft) 76%, transparent), transparent 35%),
+    radial-gradient(circle at 82% 78%, color-mix(in srgb, var(--primary) 12%, transparent), transparent 38%),
+    var(--soft);
+}
+
+.startup-splash-card {
+  width: min(430px, 100%);
+  padding: 36px 30px 28px;
+  border-color: color-mix(in srgb, var(--primary) 22%, #fff);
+}
+
+.startup-stage-list {
+  width: min(320px, 100%);
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.startup-stage-list span {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.startup-stage-list i {
+  width: 25px;
+  height: 25px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.startup-stage-list b {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+}
+
+.startup-stage-list span.current,
+.startup-stage-list span.complete {
+  color: var(--primary);
+}
+
+.startup-stage-list span.current i,
+.startup-stage-list span.complete i {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+html[data-text-scale="large"] .phase-page :is(p, small),
+html[data-text-scale="large"] .modal-card :is(p, small) {
+  font-size: 12px;
+}
+
+html[data-text-scale="extra-large"] .phase-page :is(p, small),
+html[data-text-scale="extra-large"] .modal-card :is(p, small) {
+  font-size: 13px;
+}
+
+@media (min-width: 901px) and (max-width: 1200px) {
+  .install-trigger {
+    width: auto;
+    padding-inline: 12px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .workspace-hero-aside,
+  .sales-operations-hero > aside,
+  .register-balance-card {
+    width: min(720px, 100%);
+    max-width: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .phase-mobile-only {
+    display: block !important;
+  }
+
+  .phase-mobile-only.transaction-card-list,
+  .phase-mobile-only.approval-queue-list {
+    display: grid !important;
+  }
+
+  .workspace-hero-aside,
+  .sales-operations-hero > aside,
+  .register-balance-card {
+    width: 100%;
+  }
+
+  .data-table td {
+    font-size: 12px;
+  }
+
+  .mobile-cards .data-table td::before {
+    font-size: 9.5px;
+  }
+}
+
+@media (max-width: 650px) {
+  .workspace-operations-hero,
+  .sales-operations-hero,
+  .register-command-hero,
+  .settings-hero {
+    min-height: 0;
+    padding: 19px;
+    border-radius: 20px;
+    gap: 18px;
+  }
+
+  .operations-subhero h2,
+  .settings-hero h2 {
+    font-size: 23px;
+  }
+
+  .operations-subhero p,
+  .settings-hero p {
+    font-size: 12px;
+  }
+
+  .operations-hero-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operations-hero-actions .button {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .workspace-spotlight {
+    min-height: 104px;
+  }
+
+  .operation-metric {
+    min-height: 110px;
+  }
+
+  .settings-health {
+    max-width: none;
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(205px, 76vw);
+    overflow-x: auto;
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: none;
+  }
+
+  .settings-health::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-health > div {
+    min-height: 78px;
+    scroll-snap-align: start;
+  }
+
+  .install-trigger {
+    width: 39px;
+    min-width: 39px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .install-permission-grid,
+  .mobile-accessibility-form .form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-accessibility-form .form-actions .button {
+    width: 100%;
+  }
+
+  .startup-splash-card {
+    padding: 30px 20px 24px;
+    border-radius: 24px;
+  }
+}

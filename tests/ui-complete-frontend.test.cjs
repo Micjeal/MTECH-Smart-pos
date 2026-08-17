@@ -10,6 +10,9 @@ const { JSDOM, VirtualConsole } = require("jsdom");
 const { indexedDB, IDBKeyRange } = require("fake-indexeddb");
 
 const root = path.resolve(__dirname, "..");
+const stylesheet = fs.readFileSync(path.join(root, "assets/css/app.css"), "utf8");
+const application = fs.readFileSync(path.join(root, "assets/js/app.js"), "utf8");
+const shell = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const wait = (milliseconds) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 const contentTypes = {
@@ -103,6 +106,7 @@ const server = http.createServer((request, response) => {
 
   await openView("products", ".products-phase-page");
   assert(document.querySelector(".products-phase-page .workspace-operations-hero"));
+  assert(document.querySelector(".products-phase-page .workspace-hero-status"));
   assert.equal(
     document.querySelectorAll(".products-phase-page .operation-metric").length,
     4,
@@ -114,6 +118,7 @@ const server = http.createServer((request, response) => {
   closeModal();
 
   await openView("inventory", ".inventory-phase-page");
+  assert(document.querySelector(".inventory-phase-page .workspace-hero-status"));
   assert.equal(document.querySelectorAll(".operations-tabs .tab-button").length, 3);
   document
     .querySelector('[data-action="inventory-tab"][data-tab="movements"]')
@@ -126,6 +131,7 @@ const server = http.createServer((request, response) => {
   closeModal();
 
   await openView("stock-count", ".stock-count-phase-page");
+  assert(document.querySelector(".stock-count-phase-page .workspace-hero-status"));
   assert.equal(document.querySelectorAll(".count-workflow li").length, 3);
   document.querySelector('[data-action="new-stock-count"]').click();
   await wait(20);
@@ -134,6 +140,7 @@ const server = http.createServer((request, response) => {
 
   await openView("purchases", ".purchases-phase-page");
   assert(document.querySelector(".purchases-phase-page .workspace-spotlight"));
+  assert(document.querySelector(".purchases-phase-page .workspace-hero-status"));
   document
     .querySelector('.purchases-phase-page [data-action="new-purchase-order"]')
     .click();
@@ -142,6 +149,7 @@ const server = http.createServer((request, response) => {
   closeModal();
 
   await openView("customers", ".customers-phase-page");
+  assert(document.querySelector(".customers-phase-page .workspace-hero-status"));
   assert(document.querySelector('.customers-phase-page [data-action="new-customer"]'));
   document
     .querySelector('.customers-phase-page [data-action="new-customer"]')
@@ -151,6 +159,7 @@ const server = http.createServer((request, response) => {
   closeModal();
 
   await openView("suppliers", ".suppliers-phase-page");
+  assert(document.querySelector(".suppliers-phase-page .workspace-hero-status"));
   assert(document.querySelector('.suppliers-phase-page [data-action="new-supplier"]'));
   document
     .querySelector('.suppliers-phase-page [data-action="new-supplier"]')
@@ -160,6 +169,8 @@ const server = http.createServer((request, response) => {
   closeModal();
 
   await openView("expenses", ".expenses-page.phase-page");
+  assert(document.querySelector(".expenses-page .workspace-operations-hero"));
+  assert(document.querySelector(".expenses-page .workspace-hero-status"));
   assert.equal(
     document.querySelectorAll(".expenses-page .operation-metric").length,
     4,
@@ -170,6 +181,8 @@ const server = http.createServer((request, response) => {
   closeModal();
 
   await openView("alerts", ".alerts-page.phase-page");
+  assert(document.querySelector(".alerts-page .workspace-operations-hero"));
+  assert(document.querySelector(".alerts-page .workspace-hero-status"));
   assert.equal(
     document.querySelectorAll(".alerts-page .operation-metric").length,
     4,
@@ -180,6 +193,7 @@ const server = http.createServer((request, response) => {
 
   await openView("reports", ".reports-phase-page");
   assert(document.querySelector(".reports-phase-page .workspace-operations-hero"));
+  assert(document.querySelector(".reports-phase-page .workspace-hero-status"));
   const period = document.querySelector("#reportPeriod");
   period.value = "all";
   period.dispatchEvent(new window.Event("change", { bubbles: true }));
@@ -195,6 +209,27 @@ const server = http.createServer((request, response) => {
   await wait(25);
   assert(document.querySelector('[data-form="appearance-settings"]'));
   assert(document.querySelector(".theme-preset-grid"));
+
+  document.querySelector("#installButton").click();
+  await wait(40);
+  assert.equal(document.querySelectorAll(".install-permission").length, 4);
+  assert(document.querySelector('[data-form="mobile-setup"]'));
+  assert.match(
+    document.querySelector(".install-privacy-note").textContent,
+    /nothing is requested automatically/i,
+  );
+  closeModal();
+
+  assert.match(
+    stylesheet,
+    /\.phase-mobile-only\s*\{\s*display:\s*none\s*!important;/,
+  );
+  assert.match(
+    stylesheet,
+    /\.phase-mobile-only\.transaction-card-list,[\s\S]*?display:\s*grid\s*!important;/,
+  );
+  assert.match(application, /function workspaceHero\(\{/);
+  assert.equal((shell.match(/data-startup-stage=/g) || []).length, 3);
 
   assert.deepEqual(runtimeErrors, []);
   console.log(

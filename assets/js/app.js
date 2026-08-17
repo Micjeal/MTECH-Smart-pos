@@ -28,7 +28,7 @@
       .slice(0, 10);
   const MAX_PRODUCT_IMAGE_BYTES = 8 * 1024 * 1024;
   const TARGET_PRODUCT_IMAGE_BYTES = 520 * 1024;
-  const APP_VERSION = "4.4.0";
+  const APP_VERSION = "4.5.0";
   const DEFAULT_PRODUCT_IMAGES = {
     "prod-001": "/assets/images/products/sugar-1kg.webp",
     "prod-003": "/assets/images/products/mineral-water-500ml.webp",
@@ -260,13 +260,13 @@
     bindGlobalEvents();
     updateConnectionStatus();
     setupInstallability();
-    setStartupStatus("Preparing offline access…");
+    setStartupStatus("Preparing offline access…", 1);
     await registerServiceWorker();
     try {
-      setStartupStatus("Opening your secure retail data…");
+      setStartupStatus("Opening your secure retail data…", 2);
       await DB.open();
       await DB.seed();
-      setStartupStatus("Loading products, sales and alerts…");
+      setStartupStatus("Loading products, sales and alerts…", 3);
       await loadData();
       const route = location.hash.replace(/^#\/?/, "").split("?")[0];
       navigate(VIEW_META[route] ? route : "dashboard", false);
@@ -281,9 +281,14 @@
     }
   }
 
-  function setStartupStatus(message) {
+  function setStartupStatus(message, stage = 1) {
     const node = $("#startupStatus");
     if (node) node.textContent = message;
+    $$('[data-startup-stage]').forEach((item) => {
+      const itemStage = num(item.dataset.startupStage);
+      item.classList.toggle("current", itemStage === stage);
+      item.classList.toggle("complete", itemStage < stage);
+    });
   }
 
   function hideStartupSplash() {
@@ -1328,10 +1333,25 @@
     spotlightDetail,
     iconName = "activity",
     tone = "",
+    statusLabel = "",
+    statusDetail = "",
+    statusIcon = "check",
+    statusTone = "ready",
+    statusAction = "",
+    statusView = "",
+    statusId = "",
   }) {
+    const statusInteractive = Boolean(statusAction || statusView);
+    const statusTag = statusInteractive ? "button" : "div";
+    const statusAttributes = statusInteractive
+      ? `${statusAction ? ` data-action="${esc(statusAction)}"` : ""}${statusView ? ` data-view="${esc(statusView)}"` : ""}${statusId ? ` data-id="${esc(statusId)}"` : ""}`
+      : "";
+    const statusControl = statusLabel
+      ? `<${statusTag} class="operations-status-pill workspace-hero-status ${esc(statusTone)}"${statusAttributes}><span>${I(statusIcon)}</span><span><strong>${esc(statusLabel)}</strong><small>${esc(statusDetail)}</small></span>${statusInteractive ? I("arrowRight") : ""}</${statusTag}>`
+      : "";
     return `<section class="operations-subhero workspace-operations-hero ${tone}">
       <div class="workspace-hero-copy"><span class="eyebrow">${esc(eyebrow)}</span><h2>${esc(title)}</h2><p>${esc(description)}</p>${actions ? `<div class="operations-hero-actions">${actions}</div>` : ""}</div>
-      <aside class="workspace-spotlight"><span class="workspace-spotlight-icon">${I(iconName)}</span><div><span>${esc(spotlightLabel)}</span><strong>${spotlightValue}</strong><small>${esc(spotlightDetail)}</small></div></aside>
+      <aside class="workspace-hero-aside"><div class="workspace-spotlight"><span class="workspace-spotlight-icon">${I(iconName)}</span><div><span>${esc(spotlightLabel)}</span><strong>${spotlightValue}</strong><small>${esc(spotlightDetail)}</small></div></div>${statusControl}</aside>
     </section>`;
   }
   function transactionCard(sale, compact = false) {
@@ -1884,6 +1904,15 @@
         spotlightDetail: `${state.products.length} products across ${state.categories.length} categories`,
         iconName: "package",
         tone: lowStock ? "attention" : "ready",
+        statusLabel: lowStock
+          ? `${lowStock} product${lowStock === 1 ? "" : "s"} need stock attention`
+          : "Catalogue is sale-ready",
+        statusDetail: lowStock
+          ? `${outOfStock} currently out of stock`
+          : "Images, barcodes and pricing are ready to use",
+        statusIcon: lowStock ? "warning" : "check",
+        statusTone: lowStock ? "attention" : "ready",
+        statusView: "inventory",
       })}
       <section class="operation-metric-strip">
         ${operationMetric("Products", state.products.length, `${state.categories.length} active catalogue categories`, "package", "info")}
@@ -2095,6 +2124,15 @@
         spotlightDetail: `${products.length} tracked products · ${low.length} need attention`,
         iconName: "boxes",
         tone: low.length ? "attention" : "ready",
+        statusLabel: low.length
+          ? `${low.length} replenishment risk${low.length === 1 ? "" : "s"}`
+          : "Inventory levels are healthy",
+        statusDetail: low.length
+          ? `${outOfStock} out of stock · open the count workflow`
+          : "No tracked products are below reorder level",
+        statusIcon: low.length ? "warning" : "check",
+        statusTone: low.length ? "attention" : "ready",
+        statusView: "stock-count",
       })}
       <section class="operation-metric-strip">
         ${operationMetric("Units in stock", unitsInStock, "Across all tracked catalogue products", "boxes", "info")}
@@ -2174,6 +2212,15 @@
           : "Start with the products currently on hand",
         iconName: "clipboard",
         tone: drafts.length ? "attention" : "ready",
+        statusLabel: drafts.length
+          ? `${drafts.length} draft count${drafts.length === 1 ? "" : "s"} to continue`
+          : "Ready for a fresh count",
+        statusDetail: drafts.length
+          ? "Finish or review open variance records"
+          : "A new count will compare physical and system stock",
+        statusIcon: drafts.length ? "edit" : "check",
+        statusTone: drafts.length ? "attention" : "ready",
+        statusAction: "new-stock-count",
       })}
       <section class="operation-metric-strip">
         ${operationMetric("Completed counts", completed.length, "Counts applied to system inventory", "check", "success")}
@@ -2236,6 +2283,15 @@
         spotlightDetail: `${openOrders.length} open order${openOrders.length === 1 ? "" : "s"} across active suppliers`,
         iconName: "truck",
         tone: openOrders.length ? "attention" : "ready",
+        statusLabel: openOrders.length
+          ? `${openOrders.length} order${openOrders.length === 1 ? "" : "s"} still in progress`
+          : "Supplier queue is clear",
+        statusDetail: openOrders.length
+          ? "Review delivery progress before creating another order"
+          : "Create an order when stock needs replenishment",
+        statusIcon: openOrders.length ? "truck" : "check",
+        statusTone: openOrders.length ? "attention" : "ready",
+        statusAction: "new-purchase-order",
       })}
       <section class="operation-metric-strip">
         ${operationMetric("Open orders", openOrders.length, "Draft, ordered and partially received", "clipboard", openOrders.length ? "warning" : "success")}
@@ -2292,6 +2348,15 @@
         spotlightDetail: `${suppliersOwed} supplier${suppliersOwed === 1 ? "" : "s"} currently owed`,
         iconName: "supplier",
         tone: outstanding ? "attention" : "ready",
+        statusLabel: outstanding
+          ? `${suppliersOwed} payable account${suppliersOwed === 1 ? "" : "s"}`
+          : "Supplier balances are clear",
+        statusDetail: outstanding
+          ? "Open purchasing to review deliveries and payments"
+          : "No supplier balance needs action",
+        statusIcon: outstanding ? "credit" : "check",
+        statusTone: outstanding ? "attention" : "ready",
+        statusView: "purchases",
       })}
       <section class="operation-metric-strip">
         ${operationMetric("Suppliers", state.suppliers.length, `${suppliers.length} matching the current search`, "supplier", "info")}
@@ -2341,6 +2406,15 @@
         spotlightDetail: `${creditCustomers.length} customer account${creditCustomers.length === 1 ? "" : "s"} with a balance`,
         iconName: "users",
         tone: due ? "attention" : "ready",
+        statusLabel: nearLimit
+          ? `${nearLimit} account${nearLimit === 1 ? "" : "s"} near the credit limit`
+          : "Customer credit is controlled",
+        statusDetail: nearLimit
+          ? "Review balances before extending more credit"
+          : `${creditCustomers.length} active balance${creditCustomers.length === 1 ? "" : "s"} remain within policy`,
+        statusIcon: nearLimit ? "warning" : "check",
+        statusTone: nearLimit ? "attention" : "ready",
+        statusView: "sales",
       })}
       <section class="operation-metric-strip">
         ${operationMetric("Customers", state.customers.length, `${customers.length} matching the current search`, "users", "info")}
@@ -2470,7 +2544,32 @@
     );
     const categories = [...new Set(allAlerts.map((alert) => alert.category))];
     $("#appView").innerHTML = `<div class="page-stack phase-page alerts-page">
-      <section class="alerts-hero"><div><span class="eyebrow">Operational intelligence</span><h2>Focus on what needs action now.</h2><p>Alerts are generated from live stock, expiry, approval, purchasing, credit, expense and backup records. They clear automatically when the underlying issue is resolved.</p></div><div class="alerts-hero-score"><span>Open attention items</span><strong>${open.length}</strong><small>${critical.length} critical</small></div></section>
+      ${workspaceHero({
+        eyebrow: "Operational intelligence",
+        title: "Focus on what needs action now.",
+        description:
+          "Alerts are generated from live stock, expiry, approval, purchasing, credit, expense and backup records. They clear automatically when the underlying issue is resolved.",
+        actions: `<button class="button button-primary" data-action="open-alert-settings">${I("settings")}Alert settings</button><button class="button button-outline" data-action="acknowledge-all-alerts" ${open.length ? "" : "disabled"}>${I("check")}Acknowledge all</button>`,
+        spotlightLabel: "Open attention items",
+        spotlightValue: open.length,
+        spotlightDetail: `${critical.length} critical · ${alerts.length} shown with current filters`,
+        iconName: critical.length ? "warning" : "bell",
+        tone: open.length ? "attention" : "ready",
+        statusLabel: critical.length
+          ? `${critical.length} critical alert${critical.length === 1 ? " needs" : "s need"} review`
+          : open.length
+            ? `${open.length} alert${open.length === 1 ? "" : "s"} remain open`
+            : "No unresolved alerts",
+        statusDetail: critical.length
+          ? "Open the highest-priority item before routine work"
+          : open.length
+            ? "Review, acknowledge or resolve the source condition"
+            : "Stock, approvals and data protection are currently clear",
+        statusIcon: open.length ? "warning" : "check",
+        statusTone: open.length ? "attention" : "ready",
+        statusAction: open.length ? "open-alert-target" : "open-alert-settings",
+        statusId: open[0]?.id || "",
+      })}
       <section class="operation-metric-strip">${operationMetric("Open alerts", open.length, "Unacknowledged and ready for action", "bell", open.length ? "warning" : "success")}${operationMetric("Critical", critical.length, "High-priority operational risks", "warning", critical.length ? "warning" : "success")}${operationMetric("Acknowledged", acknowledged.length, "Reviewed while the condition remains", "check", "info")}${operationMetric("Snoozed", snoozed.length, "Temporarily hidden from the active count", "calendar", "info")}</section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Alerts inbox</h2><p>Acknowledging an alert records attention; it does not change stock, payments or approvals.</p></div><div class="toolbar-actions"><button class="button button-outline" data-action="acknowledge-all-alerts" ${open.length ? "" : "disabled"}>${I("check")}Acknowledge all</button><button class="button button-primary" data-action="open-alert-settings">${I("settings")}Alert settings</button></div></div>
       <section class="panel"><div class="panel-header alert-filter-bar"><div class="search-box">${I("search")}<input data-filter="alerts" value="${esc(state.filters.alerts)}" placeholder="Search alerts"></div><select class="select-control" id="alertSeverityFilter"><option value="all">All priorities</option><option value="critical" ${state.alertSeverityFilter === "critical" ? "selected" : ""}>Critical</option><option value="warning" ${state.alertSeverityFilter === "warning" ? "selected" : ""}>Warning</option></select><select class="select-control" id="alertCategoryFilter"><option value="all">All categories</option>${categories.map((category) => `<option value="${category}" ${state.alertCategoryFilter === category ? "selected" : ""}>${esc(alertCategoryLabel(category))}</option>`).join("")}</select><select class="select-control" id="alertStatusFilter"><option value="open" ${state.alertStatusFilter === "open" ? "selected" : ""}>Open</option><option value="acknowledged" ${state.alertStatusFilter === "acknowledged" ? "selected" : ""}>Acknowledged</option><option value="snoozed" ${state.alertStatusFilter === "snoozed" ? "selected" : ""}>Snoozed</option><option value="all" ${state.alertStatusFilter === "all" ? "selected" : ""}>All states</option></select></div>
@@ -2599,7 +2698,32 @@
       .filter((request) => request.type === "expense")
       .slice(0, 8);
     $("#appView").innerHTML = `<div class="page-stack phase-page expenses-page">
-      <section class="expense-hero"><div><span class="eyebrow">Financial control</span><h2>Know where every operating shilling goes.</h2><p>Capture evidence, schedule amounts due, control high-value approvals and keep paid expenses connected to the cash register.</p></div><button class="button hero-primary" data-action="new-expense">${I("plus")}Record expense</button></section>
+      ${workspaceHero({
+        eyebrow: "Financial control",
+        title: "Know where every operating shilling goes.",
+        description:
+          "Capture evidence, schedule amounts due, control high-value approvals and keep paid expenses connected to the cash register.",
+        actions: `<button class="button button-primary" data-action="new-expense">${I("plus")}Record expense</button><button class="button button-outline" data-action="export-expenses">${I("download")}Export expenses</button>`,
+        spotlightLabel: "Approved spend this month",
+        spotlightValue: formatMoney(month),
+        spotlightDetail: `${state.expenses.length} records · ${state.expenses.filter((expense) => expense.receiptData).length} with receipt evidence`,
+        iconName: "wallet",
+        tone: overdue.length || pendingApprovals.length ? "attention" : "ready",
+        statusLabel: overdue.length
+          ? `${overdue.length} overdue expense${overdue.length === 1 ? "" : "s"}`
+          : pendingApprovals.length
+            ? `${pendingApprovals.length} approval${pendingApprovals.length === 1 ? "" : "s"} waiting`
+            : "Expense controls are clear",
+        statusDetail: overdue.length
+          ? `${formatMoney(outstanding)} remains outstanding`
+          : pendingApprovals.length
+            ? "A manager decision is required before recognition"
+            : "No overdue or pending controlled expenses",
+        statusIcon: overdue.length || pendingApprovals.length ? "warning" : "check",
+        statusTone: overdue.length || pendingApprovals.length ? "attention" : "ready",
+        statusAction: pendingApprovals.length ? "view-approval" : "new-expense",
+        statusId: pendingApprovals[0]?.id || "",
+      })}
       <section class="operation-metric-strip">${operationMetric("This month", formatMoney(month), "Approved operating costs", "wallet", "warning")}${operationMetric("Outstanding", formatMoney(outstanding), `${overdue.length} overdue expense${overdue.length === 1 ? "" : "s"}`, "calendar", outstanding ? "warning" : "success")}${operationMetric("Pending approval", pendingApprovals.length, "High-value expenses awaiting review", "lock", pendingApprovals.length ? "warning" : "success")}${operationMetric("Expense records", state.expenses.length, `${state.expenses.filter((expense) => expense.receiptData).length} with receipt evidence`, "list", "info")}</section>
       <div class="page-toolbar"><div class="toolbar-title"><h2>Expense ledger</h2><p>Filter operating costs by period, category and control status.</p></div><div class="toolbar-actions"><button class="button button-outline" data-action="export-expenses">${I("download")}Export CSV</button><button class="button button-primary" data-action="new-expense">${I("plus")}Add expense</button></div></div>
       <section class="expense-layout"><article class="panel expense-ledger-panel"><div class="panel-header expense-filter-bar"><div class="search-box">${I("search")}<input data-filter="expenses" value="${esc(state.filters.expenses)}" placeholder="Search number, vendor or description"></div><select class="select-control" id="expensePeriodFilter"><option value="month" ${state.expensePeriodFilter === "month" ? "selected" : ""}>This month</option><option value="today" ${state.expensePeriodFilter === "today" ? "selected" : ""}>Today</option><option value="7d" ${state.expensePeriodFilter === "7d" ? "selected" : ""}>Last 7 days</option><option value="year" ${state.expensePeriodFilter === "year" ? "selected" : ""}>This year</option><option value="all" ${state.expensePeriodFilter === "all" ? "selected" : ""}>All time</option></select><select class="select-control" id="expenseStatusFilter"><option value="all">All statuses</option>${["paid", "unpaid", "overdue", "pending-approval", "rejected", "voided"].map((status) => `<option value="${status}" ${state.expenseStatusFilter === status ? "selected" : ""}>${esc(status.replaceAll("-", " "))}</option>`).join("")}</select><select class="select-control" id="expenseCategoryFilter"><option value="all">All categories</option>${EXPENSE_CATEGORIES.map((category) => `<option ${state.expenseCategoryFilter === category ? "selected" : ""}>${esc(category)}</option>`).join("")}</select></div><div class="table-wrap mobile-cards"><table class="data-table expense-table"><thead><tr><th>Expense</th><th>Vendor</th><th>Date / due</th><th>Category</th><th>Payment</th><th>Total</th><th>Status</th><th></th></tr></thead><tbody>${expenses.length ? expenses.map((expense) => {
@@ -2803,6 +2927,12 @@
         spotlightDetail: `${data.sales.length} completed receipt${data.sales.length === 1 ? "" : "s"} in the selected period`,
         iconName: "chart",
         tone: data.netProfit >= 0 ? "ready" : "attention",
+        statusLabel:
+          data.netProfit >= 0 ? "Selected period is profitable" : "Selected period needs attention",
+        statusDetail: `${({ today: "Today", "7d": "Last 7 days", "30d": "Last 30 days", month: "This month", year: "This year", all: "All time" })[state.reportPeriod] || "Selected period"} · ${formatMoney(data.expenseTotal)} operating expenses`,
+        statusIcon: data.netProfit >= 0 ? "check" : "warning",
+        statusTone: data.netProfit >= 0 ? "ready" : "attention",
+        statusView: data.netProfit >= 0 ? "sales" : "expenses",
       })}
       <div class="page-toolbar"><div class="toolbar-title"><h2>Business performance</h2><p>Financial estimates based on transactions stored on this device</p></div><div class="toolbar-actions"><select class="select-control" id="reportPeriod"><option value="today" ${state.reportPeriod === "today" ? "selected" : ""}>Today</option><option value="7d" ${state.reportPeriod === "7d" ? "selected" : ""}>Last 7 days</option><option value="30d" ${state.reportPeriod === "30d" ? "selected" : ""}>Last 30 days</option><option value="month" ${state.reportPeriod === "month" ? "selected" : ""}>This month</option><option value="year" ${state.reportPeriod === "year" ? "selected" : ""}>This year</option><option value="all" ${state.reportPeriod === "all" ? "selected" : ""}>All time</option></select><button class="button button-outline" data-action="export-report">${I("download")}Export report</button></div></div>
       <section class="operation-metric-strip">${operationMetric("Net sales", formatMoney(data.netSales), `${data.sales.length} completed receipts`, "money", "success")}${operationMetric("Gross profit", formatMoney(data.grossProfit), "Net sales less product cost", "chart", "info")}${operationMetric("Operating expenses", formatMoney(data.expenseTotal), `${data.expenses.length} expense entries`, "wallet", "warning")}${operationMetric("Net margin", data.netSales ? `${((data.netProfit / data.netSales) * 100).toFixed(1)}%` : "0.0%", "Estimated net profit divided by net sales", "activity", data.netProfit >= 0 ? "success" : "warning")}</section>
