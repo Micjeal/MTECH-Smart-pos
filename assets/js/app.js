@@ -384,7 +384,8 @@
     $("#sidebarClose").innerHTML = I("close");
     $("#modalClose").innerHTML = I("close");
     $("#scannerClose").innerHTML = I("close");
-    $("#installButton").innerHTML = `${I("download")}<span>Set up & install</span>`;
+    $("#browserInstallIcon").innerHTML = I("download");
+    $("#browserInstallDismiss").innerHTML = I("close");
     $("#newSaleButton").innerHTML = `${I("plus")}<span>New sale</span>`;
     $("#alertsButtonIcon").innerHTML = I("bell");
     $("#mobile-dashboard").innerHTML = `${I("home")}<span>Home</span>`;
@@ -1743,7 +1744,7 @@
     );
     const cartOpen = state.mobilePosStage === "cart";
     return `<section class="mobile-split-pos ${cartOpen ? "cart-open" : "products-open"}">
-      <button class="mobile-readiness-card" data-action="install-app" aria-label="Review mobile setup and installation">
+      <button class="mobile-readiness-card" data-action="mobile-setup" aria-label="Review mobile device setup">
         <span class="readiness-check">${I(readiness.ready === 4 ? "check" : "settings")}</span>
         <span class="readiness-copy"><strong>${readiness.ready === 4 ? "Mobile setup complete" : "Finish mobile setup"}</strong><small>${readiness.ready} of 4 ready</small></span>
         <span class="readiness-items">${readiness.items
@@ -3066,7 +3067,7 @@
       const lastBackup = state.business.lastBackupAt
         ? formatDateTime(state.business.lastBackupAt)
         : "Never on this device";
-      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("database")}</span><div><span class="eyebrow">Device and recovery</span><h2>Data, backup and installation</h2><p>Protect local records and move them between devices safely.</p></div></div><form class="settings-form settings-data-form" data-form="data-settings"><div class="device-status-grid"><div><span>Application</span><strong>Version ${APP_VERSION}</strong><small>IndexedDB v6</small></div><div><span>Offline use</span><strong>Ready</strong><small>${installed ? "Installed on this device" : "Browser installation available"}</small></div><div><span>Scanner</span><strong>${"BarcodeDetector" in window ? "Native" : window.ZXingBrowser ? "Compatible" : "Manual"}</strong><small>Camera, image and typed entry</small></div><div><span>Last backup</span><strong>${esc(lastBackup)}</strong><small>Download backups regularly</small></div></div><div class="settings-field-grid"><div class="field"><label>Backup reminder interval (days)</label><input type="number" name="backupReminderDays" min="1" max="90" step="1" value="${clamp(num(state.business.backupReminderDays) || 7, 1, 90)}"><small>Used to show backup health in the alerts centre and this control centre.</small></div></div><div class="settings-actions-grid data-action-grid"><button type="button" class="settings-action featured" data-action="export-backup">${I("download")}<div><strong>Export full backup</strong><span>Products, images, sales, alerts, expenses, approvals, purchases and settings.</span></div></button><button type="button" class="settings-action" data-action="import-backup">${I("upload")}<div><strong>Import backup</strong><span>Replace this device’s database from a valid JSON backup.</span></div></button><button type="button" class="settings-action" data-action="export-products">${I("file")}<div><strong>Product CSV</strong><span>Export the current catalogue for spreadsheets.</span></div></button><button type="button" class="settings-action" data-action="export-sales">${I("receipt")}<div><strong>Sales CSV</strong><span>Export receipt totals and transaction statuses.</span></div></button><button type="button" class="settings-action" data-action="install-app">${I("download")}<div><strong>${installed ? "App installed" : "Review setup & install"}</strong><span>Check camera, notifications, sound and accessibility before installation.</span></div></button></div><div class="settings-save-bar"><span>Records live in this browser profile, not a cloud account.</span><button class="button button-primary" type="submit">${I("save")}Save reminder</button></div></form><div class="danger-zone-inline"><div><strong>Reset this device</strong><span>Permanently remove all local POS records and recreate sample data.</span></div><button class="button button-danger" data-action="reset-data">${I("trash")}Delete all data</button></div></article>`;
+      return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("database")}</span><div><span class="eyebrow">Device and recovery</span><h2>Data, backup and installation</h2><p>Protect local records and move them between devices safely.</p></div></div><form class="settings-form settings-data-form" data-form="data-settings"><div class="device-status-grid"><div><span>Application</span><strong>Version ${APP_VERSION}</strong><small>IndexedDB v6</small></div><div><span>Offline use</span><strong>Ready</strong><small>${installed ? "Installed on this device" : "Browser installation available"}</small></div><div><span>Scanner</span><strong>${"BarcodeDetector" in window ? "Native" : window.ZXingBrowser ? "Compatible" : "Manual"}</strong><small>Camera, image and typed entry</small></div><div><span>Last backup</span><strong>${esc(lastBackup)}</strong><small>Download backups regularly</small></div></div><div class="settings-field-grid"><div class="field"><label>Backup reminder interval (days)</label><input type="number" name="backupReminderDays" min="1" max="90" step="1" value="${clamp(num(state.business.backupReminderDays) || 7, 1, 90)}"><small>Used to show backup health in the alerts centre and this control centre.</small></div></div><div class="settings-actions-grid data-action-grid"><button type="button" class="settings-action featured" data-action="export-backup">${I("download")}<div><strong>Export full backup</strong><span>Products, images, sales, alerts, expenses, approvals, purchases and settings.</span></div></button><button type="button" class="settings-action" data-action="import-backup">${I("upload")}<div><strong>Import backup</strong><span>Replace this device’s database from a valid JSON backup.</span></div></button><button type="button" class="settings-action" data-action="export-products">${I("file")}<div><strong>Product CSV</strong><span>Export the current catalogue for spreadsheets.</span></div></button><button type="button" class="settings-action" data-action="export-sales">${I("receipt")}<div><strong>Sales CSV</strong><span>Export receipt totals and transaction statuses.</span></div></button></div><div class="settings-save-bar"><span>Records live in this browser profile, not a cloud account.</span><button class="button button-primary" type="submit">${I("save")}Save reminder</button></div></form><div class="danger-zone-inline"><div><strong>Reset this device</strong><span>Permanently remove all local POS records and recreate sample data.</span></div><button class="button button-danger" data-action="reset-data">${I("trash")}Delete all data</button></div></article>`;
     }
     return `<article class="panel settings-content-card"><div class="settings-content-heading"><span class="settings-heading-icon">${I("store")}</span><div><span class="eyebrow">Business identity</span><h2>Business profile and tax</h2><p>Details used across the app, reports and branded receipts.</p></div></div><form class="settings-form" data-form="business-settings"><div class="business-identity-banner"><div class="business-avatar">${esc(initials(state.business.businessName))}</div><div><strong>${esc(state.business.businessName)}</strong><span>${esc(state.business.address || "Add your business address")}</span></div><span class="badge success">Active profile</span></div><div class="settings-field-grid"><div class="field"><label>Business name</label><input name="businessName" required value="${esc(state.business.businessName || "")}"></div><div class="field"><label>Phone</label><input name="phone" value="${esc(state.business.phone || "")}"></div><div class="field"><label>Email</label><input type="email" name="email" value="${esc(state.business.email || "")}"></div><div class="field"><label>TIN / registration number</label><input name="taxId" value="${esc(state.business.taxId || "")}"></div><div class="field full"><label>Business address</label><input name="address" value="${esc(state.business.address || "")}"></div><div class="field"><label>Currency code</label><input name="currency" maxlength="3" required value="${esc(state.business.currency || "UGX")}"></div><div class="field"><label>Tax rate (%)</label><input type="number" name="taxRate" min="0" max="100" step="0.01" value="${num(state.business.taxRate)}"></div><div class="field"><label>Tax mode</label><select name="taxMode"><option value="exclusive" ${state.business.taxMode !== "inclusive" ? "selected" : ""}>Add tax to price</option><option value="inclusive" ${state.business.taxMode === "inclusive" ? "selected" : ""}>Tax included in price</option></select></div></div><div class="notice info settings-risk-note">${I("info")}<div>Currency and tax changes apply to future sales. Existing receipts keep their recorded totals.</div></div><div class="settings-save-bar"><span>These details appear on professional receipts.</span><button class="button button-primary" type="submit">${I("save")}Save business profile</button></div></form></article>`;
   }
@@ -3122,7 +3123,9 @@
       "close-sidebar": closeSidebar,
       "close-modal": closeModal,
       "close-scanner": closeScanner,
-      "install-app": triggerInstall,
+      "browser-install": triggerInstall,
+      "dismiss-browser-install": dismissBrowserInstall,
+      "mobile-setup": openInstallReadinessModal,
       "new-product": () => openProductModal(),
       "edit-product": () =>
         openProductModal(state.products.find((p) => p.id === id)),
@@ -3249,7 +3252,6 @@
           behavior: "smooth",
           block: "start",
         }),
-      "continue-install": continueInstall,
       "scan-product-field": () =>
         openBarcodeScanner((code) => {
           const input = $("#productBarcode");
@@ -6303,15 +6305,43 @@
     }
   }
 
+  function isStandaloneApp() {
+    return (
+      window.matchMedia("(display-mode: standalone)").matches ||
+      navigator.standalone === true
+    );
+  }
+
+  function showBrowserInstallBanner() {
+    const banner = $("#browserInstallBanner");
+    if (!banner || isStandaloneApp() || !state.deferredPrompt) return;
+    let dismissed = false;
+    try {
+      dismissed = sessionStorage.getItem("mtech-install-banner-dismissed") === "true";
+    } catch (_) {}
+    banner.hidden = dismissed;
+  }
+
+  function hideBrowserInstallBanner() {
+    const banner = $("#browserInstallBanner");
+    if (banner) banner.hidden = true;
+  }
+
   function setupInstallability() {
+    if (isStandaloneApp()) {
+      hideBrowserInstallBanner();
+      return;
+    }
+
     window.addEventListener("beforeinstallprompt", (event) => {
       event.preventDefault();
       state.deferredPrompt = event;
-      $("#installButton").hidden = false;
+      showBrowserInstallBanner();
     });
+
     window.addEventListener("appinstalled", () => {
       state.deferredPrompt = null;
-      closeModal();
+      hideBrowserInstallBanner();
       toast(
         "App installed",
         "MTECH Retail POS is now available from your home screen.",
@@ -6319,6 +6349,50 @@
       );
       renderRegisterChip();
     });
+
+    window
+      .matchMedia("(display-mode: standalone)")
+      .addEventListener?.("change", (event) => {
+        if (event.matches) {
+          state.deferredPrompt = null;
+          hideBrowserInstallBanner();
+        }
+      });
+  }
+
+  async function triggerInstall() {
+    if (isStandaloneApp()) {
+      hideBrowserInstallBanner();
+      return;
+    }
+
+    if (!state.deferredPrompt) {
+      hideBrowserInstallBanner();
+      return;
+    }
+
+    const promptEvent = state.deferredPrompt;
+    state.deferredPrompt = null;
+    hideBrowserInstallBanner();
+
+    try {
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      if (choice?.outcome !== "accepted") {
+        try {
+          sessionStorage.setItem("mtech-install-banner-dismissed", "true");
+        } catch (_) {}
+      }
+    } catch (error) {
+      console.warn("Native install prompt failed", error);
+    }
+  }
+
+  function dismissBrowserInstall() {
+    hideBrowserInstallBanner();
+    try {
+      sessionStorage.setItem("mtech-install-banner-dismissed", "true");
+    } catch (_) {}
   }
 
   async function updateReadinessStatuses() {
@@ -6349,10 +6423,7 @@
 
   function installReadinessModalBody() {
     const readiness = mobileReadinessStatus();
-    const installed =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      navigator.standalone === true;
-    return `<div class="install-readiness-summary"><span>${I(readiness.ready === 4 ? "check" : "download")}</span><div><strong>${installed ? "This app is already installed" : `${readiness.ready} of 4 setup items ready`}</strong><p>Review each mobile capability before opening the browser’s install prompt. Camera, notifications and sound are optional and stay under your control.</p></div></div><div class="install-permission-grid">${readiness.items
+    return `<div class="install-readiness-summary"><span>${I(readiness.ready === 4 ? "check" : "settings")}</span><div><strong>${readiness.ready} of 4 device items ready</strong><p>Camera, notifications, sound and accessibility are optional device capabilities. Configure only what you want to use.</p></div></div><div class="install-permission-grid">${readiness.items
       .map((item) => {
         const action = {
           camera: "request-camera-permission",
@@ -6362,14 +6433,14 @@
         }[item.key];
         return `<button type="button" class="install-permission ${item.ready ? "ready" : "pending"}" data-action="${action}" ${item.key === "notifications" && state.readiness.notifications === "unsupported" ? "disabled" : ""}>${I(item.icon)}<span><strong>${esc(item.label)}</strong><small>${esc(item.key === "accessibility" ? "App preferences, not an OS permission" : item.status)}</small></span><i>${item.ready ? I("check") : I("arrowRight")}</i></button>`;
       })
-      .join("")}</div><form class="mobile-accessibility-form" data-form="mobile-setup" id="mobileAccessibilitySetup"><div class="settings-divider">Accessibility preferences</div><div class="form-grid"><div class="field"><label>Text size</label><select name="textScale"><option value="standard" ${state.business.textScale === "standard" ? "selected" : ""}>Standard</option><option value="large" ${state.business.textScale === "large" ? "selected" : ""}>Large</option><option value="extra-large" ${state.business.textScale === "extra-large" ? "selected" : ""}>Extra large</option></select></div><label class="checkbox-field"><input type="checkbox" name="highContrast" ${settingEnabled("highContrast", false) ? "checked" : ""}><span><strong>High contrast</strong><small>Stronger borders and text</small></span></label><label class="checkbox-field"><input type="checkbox" name="reducedMotion" ${settingEnabled("reducedMotion", false) ? "checked" : ""}><span><strong>Reduce motion</strong><small>Quieter transitions</small></span></label><label class="checkbox-field"><input type="checkbox" name="largeTouchTargets" ${settingEnabled("largeTouchTargets", false) ? "checked" : ""}><span><strong>Larger controls</strong><small>Easier one-handed use</small></span></label></div><div class="form-actions"><button class="button button-outline" type="submit">${I("save")}Save accessibility</button><button class="button button-primary" type="button" data-action="continue-install" ${installed ? "disabled" : ""}>${I("download")}${state.deferredPrompt ? "Continue to install" : "Show install steps"}</button></div></form><div class="notice info install-privacy-note">${I("lock")}<div><strong>Nothing is requested automatically.</strong><br>Each permission is requested only after you tap its control. You can install without enabling optional permissions.</div></div>`;
+      .join("")}</div><form class="mobile-accessibility-form" data-form="mobile-setup" id="mobileAccessibilitySetup"><div class="settings-divider">Accessibility preferences</div><div class="form-grid"><div class="field"><label>Text size</label><select name="textScale"><option value="standard" ${state.business.textScale === "standard" ? "selected" : ""}>Standard</option><option value="large" ${state.business.textScale === "large" ? "selected" : ""}>Large</option><option value="extra-large" ${state.business.textScale === "extra-large" ? "selected" : ""}>Extra large</option></select></div><label class="checkbox-field"><input type="checkbox" name="highContrast" ${settingEnabled("highContrast", false) ? "checked" : ""}><span><strong>High contrast</strong><small>Stronger borders and text</small></span></label><label class="checkbox-field"><input type="checkbox" name="reducedMotion" ${settingEnabled("reducedMotion", false) ? "checked" : ""}><span><strong>Reduce motion</strong><small>Quieter transitions</small></span></label><label class="checkbox-field"><input type="checkbox" name="largeTouchTargets" ${settingEnabled("largeTouchTargets", false) ? "checked" : ""}><span><strong>Larger controls</strong><small>Easier one-handed use</small></span></label></div><div class="form-actions"><button class="button button-primary" type="submit">${I("save")}Save device preferences</button></div></form><div class="notice info install-privacy-note">${I("lock")}<div><strong>Permissions stay under your control.</strong><br>The POS only requests a permission after you tap its device control.</div></div>`;
   }
 
   async function openInstallReadinessModal() {
     await updateReadinessStatuses();
     openModal(
-      "Mobile setup & installation",
-      "Prepare this device before adding MTECH POS to the home screen",
+      "Mobile device setup",
+      "Configure optional phone capabilities for MTECH POS",
       installReadinessModalBody(),
       true,
     );
@@ -6485,24 +6556,6 @@
     await openInstallReadinessModal();
   }
 
-  async function continueInstall() {
-    if (state.deferredPrompt) {
-      const prompt = state.deferredPrompt;
-      closeModal();
-      prompt.prompt();
-      const choice = await prompt.userChoice;
-      state.deferredPrompt = null;
-      if (choice?.outcome !== "accepted")
-        toast("Installation paused", "You can reopen setup and install later.", "info");
-      return;
-    }
-    const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    openModal(
-      "Install from your browser",
-      "The setup review is complete",
-      `<div class="notice info">${I("download")}<div>${isiOS ? "In Safari, tap Share, then choose “Add to Home Screen”." : "Open the browser menu and choose “Install app” or “Add to Home screen”. If the option is missing, reload this secure page and try again."}</div></div><div class="breakdown-list"><div class="breakdown-row"><span>Secure HTTPS connection</span><strong>${location.protocol === "https:" ? "Ready" : "Required"}</strong></div><div class="breakdown-row"><span>Offline service worker</span><strong>${"serviceWorker" in navigator ? "Ready" : "Unavailable"}</strong></div><div class="breakdown-row"><span>App manifest</span><strong>Ready</strong></div><div class="breakdown-row"><span>Permissions</span><strong>User controlled</strong></div></div><div class="form-actions"><button class="button button-primary" data-action="close-modal">Done</button></div>`,
-    );
-  }
   async function registerServiceWorker() {
     if (!("serviceWorker" in navigator)) return;
     try {
