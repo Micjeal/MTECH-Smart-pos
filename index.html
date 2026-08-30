@@ -35,23 +35,53 @@
         } catch (_) {}
       })();
     </script>
-    <link rel="stylesheet" href="/assets/css/app.css?v=4.5.0-r1" />
+    <link rel="stylesheet" href="/assets/css/app.css?v=4.6.0-r1" />
     <title>MTECH Retail POS</title>
   </head>
   <body class="is-booting">
-    <div class="startup-splash" id="startupSplash" role="status" aria-live="polite">
-      <div class="startup-splash-card">
-        <img src="/icons/icon-192.png" alt="" width="88" height="88" />
-        <span class="startup-eyebrow">MTECH Smart POS</span>
-        <h1>Preparing your retail workspace</h1>
-        <p id="startupStatus">Loading secure offline data…</p>
-        <div class="startup-progress" aria-hidden="true"><span></span></div>
-        <div class="startup-stage-list" aria-hidden="true">
-          <span class="current" data-startup-stage="1"><i>1</i><b>Device</b></span>
-          <span data-startup-stage="2"><i>2</i><b>Data</b></span>
-          <span data-startup-stage="3"><i>3</i><b>Workspace</b></span>
+    <div class="splash-screen" id="appSplash" role="status" aria-live="polite" aria-label="Loading MTECH Retail POS">
+      <div class="splash-card">
+        <div class="splash-brand">
+          <div class="splash-logo" id="splashLogo" aria-hidden="true"></div>
+          <div class="splash-brand-copy">
+            <strong>MTECH</strong>
+            <span>Retail POS</span>
+          </div>
         </div>
-        <small>Sales · Stock · Alerts · Expenses</small>
+        <div class="splash-copy">
+          <h1>Loading your workspace</h1>
+          <p id="splashMessage">Preparing everything you need to run your store.</p>
+        </div>
+        <div class="splash-progress-row">
+          <div class="splash-progress" aria-hidden="true"><span id="splashProgressBar"></span></div>
+          <strong id="splashProgressText">8%</strong>
+        </div>
+        <div class="splash-checklist" aria-label="Startup progress">
+          <div class="splash-step active" data-splash-step="settings">
+            <span class="splash-step-icon" id="splashStepSettings"></span>
+            <span class="splash-step-copy"><strong>Syncing settings</strong><small>Preparing local preferences and offline services</small></span>
+            <span class="splash-step-state"></span>
+          </div>
+          <div class="splash-step" data-splash-step="products">
+            <span class="splash-step-icon" id="splashStepProducts"></span>
+            <span class="splash-step-copy"><strong>Loading products</strong><small>Opening catalogue, sales and inventory records</small></span>
+            <span class="splash-step-state"></span>
+          </div>
+          <div class="splash-step" data-splash-step="register">
+            <span class="splash-step-icon" id="splashStepRegister"></span>
+            <span class="splash-step-copy"><strong>Checking register</strong><small>Restoring cash-register and shift state</small></span>
+            <span class="splash-step-state"></span>
+          </div>
+          <div class="splash-step" data-splash-step="dashboard">
+            <span class="splash-step-icon" id="splashStepDashboard"></span>
+            <span class="splash-step-copy"><strong>Getting dashboard ready</strong><small>Preparing the selected workspace and device readiness</small></span>
+            <span class="splash-step-state"></span>
+          </div>
+        </div>
+        <div class="splash-security">
+          <span id="splashSecurityIcon" aria-hidden="true"></span>
+          <span>Your local retail data stays available offline</span>
+        </div>
       </div>
     </div>
     <div class="app-shell">
@@ -155,10 +185,13 @@
         <header class="topbar">
           <div class="topbar-main">
             <button
-              class="icon-button mobile-only"
-              data-action="open-sidebar"
+              class="icon-button sidebar-toggle"
+              data-action="toggle-sidebar"
               id="menuButton"
-              aria-label="Open navigation"
+              aria-label="Collapse navigation"
+              aria-controls="sidebar"
+              aria-expanded="true"
+              title="Collapse navigation"
             ></button>
             <div class="page-heading">
               <h1 id="pageTitle">Dashboard</h1>
@@ -292,9 +325,9 @@
     <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
     <div id="printArea" class="print-area"></div>
 
-    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.5.0-r1"></script>
-    <script src="/assets/js/icons.js?v=4.5.0-r1"></script>
-    <script src="/assets/js/db.js?v=4.5.0-r1"></script>
-    <script src="/assets/js/app.js?v=4.5.0-r1"></script>
+    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.6.0-r1"></script>
+    <script src="/assets/js/icons.js?v=4.6.0-r1"></script>
+    <script src="/assets/js/db.js?v=4.6.0-r1"></script>
+    <script src="/assets/js/app.js?v=4.6.0-r1"></script>
   </body>
 </html>
