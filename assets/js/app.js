@@ -3123,8 +3123,6 @@
       "close-sidebar": closeSidebar,
       "close-modal": closeModal,
       "close-scanner": closeScanner,
-      "browser-install": triggerInstall,
-      "dismiss-browser-install": dismissBrowserInstall,
       "mobile-setup": openInstallReadinessModal,
       "new-product": () => openProductModal(),
       "edit-product": () =>
@@ -6328,6 +6326,12 @@
   }
 
   function setupInstallability() {
+    const installButton = $("#browserInstallButton");
+    const dismissButton = $("#browserInstallDismiss");
+
+    installButton?.addEventListener("click", triggerInstall);
+    dismissButton?.addEventListener("click", dismissBrowserInstall);
+
     if (isStandaloneApp()) {
       hideBrowserInstallBanner();
       return;
@@ -6360,35 +6364,75 @@
       });
   }
 
-  async function triggerInstall() {
+  function showInstallFallback(message = "") {
+    const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const secure = window.isSecureContext && location.protocol === "https:";
+
+    openModal(
+      "Install MTECH Retail POS",
+      "Browser installation help",
+      `<div class="notice info">${I("download")}<div><strong>The browser did not open its install dialog.</strong><br>${esc(
+        message ||
+          (isiOS
+            ? "Safari on iPhone and iPad does not support the Chromium install popup."
+            : "The browser has not made a native PWA install prompt available for this session."),
+      )}</div></div>
+      <div class="breakdown-list" style="margin-top:14px">
+        <div class="breakdown-row"><span>Secure HTTPS</span><strong>${secure ? "Ready" : "Required"}</strong></div>
+        <div class="breakdown-row"><span>Offline service worker</span><strong>${"serviceWorker" in navigator ? "Supported" : "Unavailable"}</strong></div>
+        <div class="breakdown-row"><span>Install method</span><strong>${isiOS ? "Safari → Share → Add to Home Screen" : isAndroid ? "Chrome menu → Install app / Add to Home screen" : "Browser menu → Install app"}</strong></div>
+      </div>
+      <div class="form-actions"><button class="button button-primary" data-action="close-modal">Done</button></div>`,
+    );
+  }
+
+  async function triggerInstall(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
     if (isStandaloneApp()) {
       hideBrowserInstallBanner();
       return;
     }
 
-    if (!state.deferredPrompt) {
-      hideBrowserInstallBanner();
+    const promptEvent = state.deferredPrompt;
+    if (!promptEvent) {
+      showInstallFallback();
       return;
     }
 
-    const promptEvent = state.deferredPrompt;
-    state.deferredPrompt = null;
-    hideBrowserInstallBanner();
+    const button = $("#browserInstallButton");
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Opening…";
+    }
 
     try {
-      await promptEvent.prompt();
-      const choice = await promptEvent.userChoice;
-      if (choice?.outcome !== "accepted") {
+      const result = await promptEvent.prompt();
+      state.deferredPrompt = null;
+      hideBrowserInstallBanner();
+
+      if (result?.outcome === "dismissed") {
         try {
           sessionStorage.setItem("mtech-install-banner-dismissed", "true");
         } catch (_) {}
       }
     } catch (error) {
       console.warn("Native install prompt failed", error);
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Install";
+      }
+      showInstallFallback(
+        error?.message || "The native install prompt was unavailable.",
+      );
     }
   }
 
-  function dismissBrowserInstall() {
+  function dismissBrowserInstall(event) {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
     hideBrowserInstallBanner();
     try {
       sessionStorage.setItem("mtech-install-banner-dismissed", "true");
@@ -6444,21 +6488,6 @@
       installReadinessModalBody(),
       true,
     );
-  }
-
-  async function triggerInstall() {
-    if (
-      window.matchMedia("(display-mode: standalone)").matches ||
-      navigator.standalone === true
-    ) {
-      toast(
-        "Already installed",
-        "The POS is already running as an installed application.",
-        "success",
-      );
-      return;
-    }
-    await openInstallReadinessModal();
   }
 
   async function requestCameraPermission() {
