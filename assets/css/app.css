@@ -7872,3 +7872,143 @@ body.sidebar-collapsed .connection-status {
     animation: none !important;
   }
 }
+
+
+/* MTECH Smart POS 4.6.1 — transient native browser install prompt */
+.browser-install-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  z-index: 960;
+  width: min(620px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 12px 12px 12px 14px;
+  border: 1px solid #cbded9;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--ink);
+  box-shadow: 0 20px 55px rgba(12, 58, 50, 0.18);
+  backdrop-filter: blur(14px);
+  animation: browserInstallIn 0.24s ease both;
+}
+
+.browser-install-banner[hidden] {
+  display: none !important;
+}
+
+.browser-install-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.browser-install-icon .icon {
+  width: 21px;
+  height: 21px;
+}
+
+.browser-install-copy {
+  min-width: 0;
+}
+
+.browser-install-copy strong,
+.browser-install-copy span {
+  display: block;
+}
+
+.browser-install-copy strong {
+  font-size: 12px;
+}
+
+.browser-install-copy span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+
+.browser-install-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.browser-install-actions .button {
+  min-width: 82px;
+}
+
+.browser-install-dismiss {
+  width: 38px;
+  height: 38px;
+}
+
+@keyframes browserInstallIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 650px) {
+  .browser-install-banner {
+    left: 12px;
+    right: 12px;
+    bottom: calc(76px + var(--safe-bottom));
+    width: auto;
+    transform: none;
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .browser-install-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+
+  .browser-install-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+  }
+
+  .browser-install-actions .button {
+    width: 100%;
+  }
+
+  @keyframes browserInstallIn {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (display-mode: standalone) {
+  .browser-install-banner {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .browser-install-banner {
+    animation: none !important;
+  }
+}
