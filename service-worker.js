@@ -1,15 +1,15 @@
 "use strict";
-const VERSION = "mtech-pos-v4.6.0-r1";
+const VERSION = "mtech-pos-v4.6.1-r1";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/offline.html",
   "/manifest.webmanifest",
-  "/assets/css/app.css?v=4.6.0-r1",
-  "/assets/vendor/zxing/zxing-browser.min.js?v=4.6.0-r1",
-  "/assets/js/icons.js?v=4.6.0-r1",
-  "/assets/js/db.js?v=4.6.0-r1",
-  "/assets/js/app.js?v=4.6.0-r1",
+  "/assets/css/app.css?v=4.6.1-r1",
+  "/assets/vendor/zxing/zxing-browser.min.js?v=4.6.1-r1",
+  "/assets/js/icons.js?v=4.6.1-r1",
+  "/assets/js/db.js?v=4.6.1-r1",
+  "/assets/js/app.js?v=4.6.1-r1",
   "/assets/images/products/bread-loaf.webp",
   "/assets/images/products/cooking-oil-1l.webp",
   "/assets/images/products/mineral-water-500ml.webp",

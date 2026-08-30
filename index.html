@@ -35,7 +35,7 @@
         } catch (_) {}
       })();
     </script>
-    <link rel="stylesheet" href="/assets/css/app.css?v=4.6.0-r1" />
+    <link rel="stylesheet" href="/assets/css/app.css?v=4.6.1-r1" />
     <title>MTECH Retail POS</title>
   </head>
   <body class="is-booting">
@@ -211,12 +211,6 @@
               <strong id="alertCount" hidden>0</strong>
             </button>
             <button
-              class="button button-outline install-trigger"
-              data-action="install-app"
-              id="installButton"
-              aria-label="Review mobile setup and install"
-            ></button>
-            <button
               class="button button-primary compact-action"
               data-view="pos"
               id="newSaleButton"
@@ -322,12 +316,24 @@
       </div>
     </div>
 
+    <div class="browser-install-banner" id="browserInstallBanner" role="region" aria-label="Install MTECH Retail POS" hidden>
+      <div class="browser-install-icon" id="browserInstallIcon" aria-hidden="true"></div>
+      <div class="browser-install-copy">
+        <strong>Install MTECH Retail POS</strong>
+        <span>Add the POS to your phone for faster launch and offline access.</span>
+      </div>
+      <div class="browser-install-actions">
+        <button class="button button-primary" data-action="browser-install" id="browserInstallButton">Install</button>
+        <button class="icon-button browser-install-dismiss" data-action="dismiss-browser-install" id="browserInstallDismiss" aria-label="Not now" title="Not now"></button>
+      </div>
+    </div>
+
     <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
     <div id="printArea" class="print-area"></div>
 
-    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.6.0-r1"></script>
-    <script src="/assets/js/icons.js?v=4.6.0-r1"></script>
-    <script src="/assets/js/db.js?v=4.6.0-r1"></script>
-    <script src="/assets/js/app.js?v=4.6.0-r1"></script>
+    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.6.1-r1"></script>
+    <script src="/assets/js/icons.js?v=4.6.1-r1"></script>
+    <script src="/assets/js/db.js?v=4.6.1-r1"></script>
+    <script src="/assets/js/app.js?v=4.6.1-r1"></script>
   </body>
 </html>
