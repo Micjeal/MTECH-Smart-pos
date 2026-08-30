@@ -236,6 +236,7 @@
     alertCategoryFilter: "all",
     alertStatusFilter: "open",
     settingsSection: "business",
+    sidebarCollapsed: false,
     filters: {
       products: "",
       inventory: "",
@@ -256,54 +257,105 @@
       if (["grid", "table"].includes(savedProductView))
         state.productView = savedProductView;
     } catch (_) {}
+
     setupStaticUI();
+    setupSidebarState();
     bindGlobalEvents();
     updateConnectionStatus();
     setupInstallability();
-    setStartupStatus("Preparing offline access…", 1);
-    await registerServiceWorker();
+
+    setSplashProgress(10, "settings", "Preparing offline services…");
     try {
-      setStartupStatus("Opening your secure retail data…", 2);
+      await registerServiceWorker();
       await DB.open();
+      setSplashStep("settings", "complete");
+
+      setSplashProgress(30, "products", "Opening your product catalogue…");
       await DB.seed();
-      setStartupStatus("Loading products, sales and alerts…", 3);
       await loadData();
+      setSplashStep("products", "complete");
+
+      setSplashProgress(66, "register", "Checking the cash register…");
+      renderRegisterChip();
+      setSplashStep("register", "complete");
+
+      setSplashProgress(84, "dashboard", "Preparing your workspace…");
       const route = location.hash.replace(/^#\/?/, "").split("?")[0];
       navigate(VIEW_META[route] ? route : "dashboard", false);
       await updateReadinessStatuses();
-      hideStartupSplash();
+      setSplashStep("dashboard", "complete");
+
+      setSplashProgress(100, null, "Workspace ready");
+      await finishSplash(true);
     } catch (error) {
       console.error(error);
+      setSplashProgress(100, null, "Startup needs attention");
       $("#appView").innerHTML =
         `<div class="notice danger">${I("warning")}<div><strong>Could not start the POS database.</strong><br>${esc(error.message)}</div></div>`;
       toast("Startup failed", error.message, "error");
-      hideStartupSplash();
+      await finishSplash(false);
     }
   }
 
-  function setStartupStatus(message, stage = 1) {
-    const node = $("#startupStatus");
-    if (node) node.textContent = message;
-    $$('[data-startup-stage]').forEach((item) => {
-      const itemStage = num(item.dataset.startupStage);
-      item.classList.toggle("current", itemStage === stage);
-      item.classList.toggle("complete", itemStage < stage);
-    });
+  function splashPause(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
-  function hideStartupSplash() {
-    const splash = $("#startupSplash");
-    if (!splash) return;
-    const wait = Math.max(0, 650 - (performance.now() - state.startupStartedAt));
-    window.setTimeout(() => {
-      splash.classList.add("is-hidden");
+  function setSplashStep(step, status = "active") {
+    if (!step) return;
+    const node = `[data-splash-step="${step}"]`;
+    const item = $(node);
+    if (!item) return;
+    item.classList.remove("active", "complete", "error");
+    item.classList.add(status);
+    const stateNode = $(".splash-step-state", item);
+    if (stateNode)
+      stateNode.innerHTML =
+        status === "complete"
+          ? I("check")
+          : status === "error"
+            ? I("warning")
+            : "";
+  }
+
+  function setSplashProgress(percent, activeStep, message) {
+    const safe = clamp(num(percent), 0, 100);
+    const bar = $("#splashProgressBar");
+    const textNode = $("#splashProgressText");
+    const messageNode = $("#splashMessage");
+    if (bar) bar.style.width = `${safe}%`;
+    if (textNode) textNode.textContent = `${Math.round(safe)}%`;
+    if (messageNode && message) messageNode.textContent = message;
+    if (activeStep) {
+      $$(".splash-step").forEach((node) => {
+        if (!node.classList.contains("complete")) node.classList.remove("active");
+      });
+      setSplashStep(activeStep, "active");
+    }
+  }
+
+  async function finishSplash(success) {
+    const splash = $("#appSplash");
+    if (!splash) {
       document.body.classList.remove("is-booting");
-      window.setTimeout(() => splash.remove(), 420);
-    }, wait);
+      return;
+    }
+    splash.classList.toggle("startup-error", !success);
+    await splashPause(success ? 180 : 520);
+    splash.classList.add("is-leaving");
+    document.body.classList.remove("is-booting");
+    await splashPause(280);
+    splash.remove();
   }
 
   function setupStaticUI() {
     $("#brandLogo").innerHTML = I("store");
+    $("#splashLogo").innerHTML = I("store");
+    $("#splashStepSettings").innerHTML = I("refresh");
+    $("#splashStepProducts").innerHTML = I("package");
+    $("#splashStepRegister").innerHTML = I("register");
+    $("#splashStepDashboard").innerHTML = I("dashboard");
+    $("#splashSecurityIcon").innerHTML = I("lock");
     const nav = {
       dashboard: ["dashboard", "Dashboard"],
       pos: ["cart", "Point of Sale"],
@@ -322,9 +374,13 @@
     };
     Object.entries(nav).forEach(([key, [iconName, label]]) => {
       const node = $(`#nav-${key}`);
-      if (node) node.innerHTML = `${I(iconName)}<span>${label}</span>`;
+      if (node) {
+        node.innerHTML = `${I(iconName)}<span>${label}</span>`;
+        node.setAttribute("title", label);
+        node.setAttribute("aria-label", label);
+      }
     });
-    $("#menuButton").innerHTML = I("menu");
+    updateSidebarToggle();
     $("#sidebarClose").innerHTML = I("close");
     $("#modalClose").innerHTML = I("close");
     $("#scannerClose").innerHTML = I("close");
@@ -362,6 +418,7 @@
     });
     window.addEventListener("online", updateConnectionStatus);
     window.addEventListener("offline", updateConnectionStatus);
+    window.addEventListener("resize", handleResponsiveSidebar);
     $("#drawerOverlay").addEventListener("click", closeSidebar);
     $("#modalLayer").addEventListener("click", (event) => {
       if (event.target === $("#modalLayer")) closeModal();
@@ -3060,6 +3117,7 @@
     if (!target) return;
     const { action, id, change, tab, decision } = target.dataset;
     const actions = {
+      "toggle-sidebar": toggleSidebar,
       "open-sidebar": openSidebar,
       "close-sidebar": closeSidebar,
       "close-modal": closeModal,
@@ -6463,14 +6521,108 @@
       : "Working offline";
     $("#databaseStatus").textContent = "Local IndexedDB active";
   }
+  const SIDEBAR_PREF_KEY = "mtech-pos-sidebar-collapsed";
+
+  function isDrawerViewport() {
+    return window.matchMedia("(max-width: 900px)").matches;
+  }
+
+  function setupSidebarState() {
+    let saved = null;
+    try {
+      saved = localStorage.getItem(SIDEBAR_PREF_KEY);
+    } catch (_) {}
+    const autoCompact = window.matchMedia(
+      "(min-width: 901px) and (max-width: 1200px)",
+    ).matches;
+    state.sidebarCollapsed = saved === null ? autoCompact : saved === "true";
+    document.body.classList.toggle(
+      "sidebar-collapsed",
+      !isDrawerViewport() && state.sidebarCollapsed,
+    );
+    updateSidebarToggle();
+  }
+
+  function setSidebarCollapsed(collapsed, persist = true) {
+    state.sidebarCollapsed = Boolean(collapsed);
+    document.body.classList.toggle(
+      "sidebar-collapsed",
+      !isDrawerViewport() && state.sidebarCollapsed,
+    );
+    if (persist) {
+      try {
+        localStorage.setItem(
+          SIDEBAR_PREF_KEY,
+          String(state.sidebarCollapsed),
+        );
+      } catch (_) {}
+    }
+    updateSidebarToggle();
+  }
+
+  function toggleSidebar() {
+    if (isDrawerViewport()) {
+      const sidebar = $("#sidebar");
+      sidebar.classList.contains("open") ? closeSidebar() : openSidebar();
+      return;
+    }
+    setSidebarCollapsed(!state.sidebarCollapsed, true);
+  }
+
+  function updateSidebarToggle() {
+    const button = $("#menuButton");
+    if (!button) return;
+    if (isDrawerViewport()) {
+      const open = $("#sidebar")?.classList.contains("open");
+      button.innerHTML = I(open ? "close" : "menu");
+      button.setAttribute(
+        "aria-label",
+        open ? "Close navigation" : "Open navigation",
+      );
+      button.setAttribute(
+        "title",
+        open ? "Close navigation" : "Open navigation",
+      );
+      button.setAttribute("aria-expanded", String(Boolean(open)));
+      return;
+    }
+    button.innerHTML = I(state.sidebarCollapsed ? "arrowRight" : "menu");
+    button.setAttribute(
+      "aria-label",
+      state.sidebarCollapsed ? "Expand navigation" : "Collapse navigation",
+    );
+    button.setAttribute(
+      "title",
+      state.sidebarCollapsed ? "Expand navigation" : "Collapse navigation",
+    );
+    button.setAttribute("aria-expanded", String(!state.sidebarCollapsed));
+  }
+
+  function handleResponsiveSidebar() {
+    if (!isDrawerViewport()) {
+      closeSidebar();
+      document.body.classList.toggle(
+        "sidebar-collapsed",
+        state.sidebarCollapsed,
+      );
+    } else {
+      document.body.classList.remove("sidebar-collapsed");
+    }
+    updateSidebarToggle();
+  }
+
   function openSidebar() {
     $("#sidebar").classList.add("open");
     $("#drawerOverlay").hidden = false;
+    updateSidebarToggle();
   }
+
   function closeSidebar() {
     $("#sidebar").classList.remove("open");
     $("#drawerOverlay").hidden = true;
+    updateSidebarToggle();
   }
+
   function openModal(title, subtitle, body, wide = false) {
     $("#modalTitle").textContent = title;
     $("#modalSubtitle").textContent = subtitle || "";
