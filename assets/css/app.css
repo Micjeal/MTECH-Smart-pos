@@ -7591,11 +7591,10 @@ body.sidebar-collapsed .connection-status {
   height: 60px;
   border-radius: 19px;
   background: linear-gradient(145deg, #21b29a, #087265);
-  display: grid;
-  place-items: center;
+  display: block;
+  object-fit: cover;
   color: #fff;
   box-shadow: 0 15px 35px rgba(11, 107, 94, 0.22);
-  animation: splashFloat 2.4s ease-in-out infinite;
 }
 
 .splash-logo .icon {
@@ -7641,38 +7640,6 @@ body.sidebar-collapsed .connection-status {
   line-height: 1.55;
 }
 
-.splash-progress-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
-  align-items: center;
-  gap: 12px;
-  margin: 22px 0 15px;
-}
-
-.splash-progress {
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e7eeec;
-  box-shadow: inset 0 1px 2px rgba(8, 54, 46, 0.08);
-}
-
-.splash-progress span {
-  display: block;
-  width: 8%;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #0b6b5e, #25b39a);
-  transition: width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.splash-progress-row > strong {
-  color: var(--primary);
-  font-size: 11px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
 .splash-checklist {
   overflow: hidden;
   border: 1px solid var(--line);
@@ -7689,9 +7656,7 @@ body.sidebar-collapsed .connection-status {
   gap: 10px;
   padding: 9px 12px;
   border-bottom: 1px solid #edf2f0;
-  transition:
-    background 0.18s ease,
-    color 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 
 .splash-step:last-child {
@@ -7763,7 +7728,7 @@ body.sidebar-collapsed .connection-status {
 .splash-step.active .splash-step-state {
   border-color: #c3e9e1;
   border-top-color: var(--primary);
-  animation: splashSpin 0.75s linear infinite;
+  animation: none;
 }
 
 .splash-step.complete .splash-step-state {
@@ -7793,8 +7758,22 @@ body.sidebar-collapsed .connection-status {
   border-color: #efc7c7;
 }
 
-.splash-screen.startup-error .splash-progress span {
-  background: var(--danger);
+.splash-retry {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 14px;
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.splash-retry:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  outline-offset: 2px;
 }
 
 @keyframes splashSpin {
