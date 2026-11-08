@@ -264,35 +264,41 @@
     updateConnectionStatus();
     setupInstallability();
 
-    setSplashProgress(10, "settings", "Preparing offline services…");
+    setSplashProgress("settings", "Opening local settings…");
     try {
       await registerServiceWorker();
       await DB.open();
       setSplashStep("settings", "complete");
 
-      setSplashProgress(30, "products", "Opening your product catalogue…");
+      setSplashProgress("products", "Opening store data…");
       await DB.seed();
       await loadData();
       setSplashStep("products", "complete");
 
-      setSplashProgress(66, "register", "Checking the cash register…");
+      setSplashProgress("register", "Checking the register…");
       renderRegisterChip();
       setSplashStep("register", "complete");
 
-      setSplashProgress(84, "dashboard", "Preparing your workspace…");
+      setSplashProgress("dashboard", "Preparing your workspace…");
       const route = location.hash.replace(/^#\/?/, "").split("?")[0];
       navigate(VIEW_META[route] ? route : "dashboard", false);
       await updateReadinessStatuses();
       setSplashStep("dashboard", "complete");
 
-      setSplashProgress(100, null, "Workspace ready");
+      setSplashProgress(null, "Workspace ready");
       await finishSplash(true);
     } catch (error) {
       console.error(error);
-      setSplashProgress(100, null, "Startup needs attention");
+      setSplashProgress(null, "Startup needs attention");
+      setSplashStep("settings", "error");
+      const retry = $("#splashRetry");
+      if (retry) {
+        retry.hidden = false;
+        retry.focus();
+      }
       $("#appView").innerHTML =
-        `<div class="notice danger">${I("warning")}<div><strong>Could not start the POS database.</strong><br>${esc(error.message)}</div></div>`;
-      toast("Startup failed", error.message, "error");
+        `<div class="notice danger">${I("warning")}<div><strong>Could not open local POS data.</strong><br>Try again. If this continues, avoid clearing browser data before exporting a backup.</div></div>`;
+      toast("Startup needs attention", "Local data was not changed.", "error");
       await finishSplash(false);
     }
   }
@@ -318,13 +324,8 @@
             : "";
   }
 
-  function setSplashProgress(percent, activeStep, message) {
-    const safe = clamp(num(percent), 0, 100);
-    const bar = $("#splashProgressBar");
-    const textNode = $("#splashProgressText");
+  function setSplashProgress(activeStep, message) {
     const messageNode = $("#splashMessage");
-    if (bar) bar.style.width = `${safe}%`;
-    if (textNode) textNode.textContent = `${Math.round(safe)}%`;
     if (messageNode && message) messageNode.textContent = message;
     if (activeStep) {
       $$(".splash-step").forEach((node) => {
@@ -340,22 +341,23 @@
       document.body.classList.remove("is-booting");
       return;
     }
-    splash.classList.toggle("startup-error", !success);
-    await splashPause(success ? 180 : 520);
+    if (!success) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    await splashPause(reduceMotion ? 0 : 120);
     splash.classList.add("is-leaving");
     document.body.classList.remove("is-booting");
-    await splashPause(280);
+    await splashPause(reduceMotion ? 0 : 180);
     splash.remove();
   }
 
   function setupStaticUI() {
     $("#brandLogo").innerHTML = I("store");
-    $("#splashLogo").innerHTML = I("store");
     $("#splashStepSettings").innerHTML = I("refresh");
     $("#splashStepProducts").innerHTML = I("package");
     $("#splashStepRegister").innerHTML = I("register");
     $("#splashStepDashboard").innerHTML = I("dashboard");
     $("#splashSecurityIcon").innerHTML = I("lock");
+    $("#splashRetry")?.addEventListener("click", () => window.location.reload());
     const nav = {
       dashboard: ["dashboard", "Dashboard"],
       pos: ["cart", "Point of Sale"],
