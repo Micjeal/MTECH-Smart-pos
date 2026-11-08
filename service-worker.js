@@ -1,5 +1,5 @@
 "use strict";
-const VERSION = "mtech-pos-v4.6.2-r1";
+const VERSION = "mtech-pos-v4.6.2-r2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -19,6 +19,7 @@ const APP_SHELL = [
   "/icons/icon-512.png",
   "/icons/icon-maskable-192.png",
   "/icons/icon-maskable-512.png",
+  "/icons/apple-touch-icon-180.png",
   "/screenshots/desktop-dashboard-v3.jpg",
   "/screenshots/mobile-pos.png",
 ];

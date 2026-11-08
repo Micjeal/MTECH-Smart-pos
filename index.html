@@ -18,7 +18,7 @@
     <meta name="apple-mobile-web-app-title" content="MTECH POS" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icons/icon-192.png" sizes="192x192" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180.png" sizes="180x180" />
     <script>
       (() => {
         try {
@@ -35,53 +35,50 @@
         } catch (_) {}
       })();
     </script>
-    <link rel="stylesheet" href="/assets/css/app.css?v=4.6.2-r1" />
+    <link rel="stylesheet" href="/assets/css/app.css?v=4.6.2-r2" />
     <title>MTECH Retail POS</title>
   </head>
   <body class="is-booting">
     <div class="splash-screen" id="appSplash" role="status" aria-live="polite" aria-label="Loading MTECH Retail POS">
       <div class="splash-card">
         <div class="splash-brand">
-          <div class="splash-logo" id="splashLogo" aria-hidden="true"></div>
+          <img class="splash-logo" src="/icons/icon-192.png" width="60" height="60" alt="" />
           <div class="splash-brand-copy">
             <strong>MTECH</strong>
             <span>Retail POS</span>
           </div>
         </div>
         <div class="splash-copy">
-          <h1>Loading your workspace</h1>
-          <p id="splashMessage">Preparing everything you need to run your store.</p>
-        </div>
-        <div class="splash-progress-row">
-          <div class="splash-progress" aria-hidden="true"><span id="splashProgressBar"></span></div>
-          <strong id="splashProgressText">8%</strong>
+          <h1>Opening your workspace</h1>
+          <p id="splashMessage">Your store data stays on this device.</p>
         </div>
         <div class="splash-checklist" aria-label="Startup progress">
           <div class="splash-step active" data-splash-step="settings">
             <span class="splash-step-icon" id="splashStepSettings"></span>
-            <span class="splash-step-copy"><strong>Syncing settings</strong><small>Preparing local preferences and offline services</small></span>
+            <span class="splash-step-copy"><strong>Opening local settings</strong><small>Preparing preferences stored on this device</small></span>
             <span class="splash-step-state"></span>
           </div>
           <div class="splash-step" data-splash-step="products">
             <span class="splash-step-icon" id="splashStepProducts"></span>
-            <span class="splash-step-copy"><strong>Loading products</strong><small>Opening catalogue, sales and inventory records</small></span>
+            <span class="splash-step-copy"><strong>Opening store data</strong><small>Loading your catalogue, sales and inventory records</small></span>
             <span class="splash-step-state"></span>
           </div>
           <div class="splash-step" data-splash-step="register">
             <span class="splash-step-icon" id="splashStepRegister"></span>
-            <span class="splash-step-copy"><strong>Checking register</strong><small>Restoring cash-register and shift state</small></span>
+            <span class="splash-step-copy"><strong>Checking register</strong><small>Reading the saved cash-register and shift state</small></span>
             <span class="splash-step-state"></span>
           </div>
           <div class="splash-step" data-splash-step="dashboard">
             <span class="splash-step-icon" id="splashStepDashboard"></span>
-            <span class="splash-step-copy"><strong>Getting dashboard ready</strong><small>Preparing the selected workspace and device readiness</small></span>
+            <span class="splash-step-copy"><strong>Preparing workspace</strong><small>Opening the selected view and device checks</small></span>
             <span class="splash-step-state"></span>
           </div>
         </div>
         <div class="splash-security">
           <span id="splashSecurityIcon" aria-hidden="true"></span>
-          <span>Your local retail data stays available offline</span>
+          <span>Local data remains on this device</span>
         </div>
+        <button class="splash-retry" id="splashRetry" type="button" hidden>Try again</button>
       </div>
     </div>
     <div class="app-shell">
@@ -331,9 +328,9 @@
     <div class="toast-stack" id="toastStack" aria-live="assertive"></div>
     <div id="printArea" class="print-area"></div>
 
-    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.6.2-r1"></script>
-    <script src="/assets/js/icons.js?v=4.6.2-r1"></script>
-    <script src="/assets/js/db.js?v=4.6.2-r1"></script>
-    <script src="/assets/js/app.js?v=4.6.2-r1"></script>
+    <script src="/assets/vendor/zxing/zxing-browser.min.js?v=4.6.2-r2"></script>
+    <script src="/assets/js/icons.js?v=4.6.2-r2"></script>
+    <script src="/assets/js/db.js?v=4.6.2-r2"></script>
+    <script src="/assets/js/app.js?v=4.6.2-r2"></script>
   </body>
 </html>
